@@ -1,0 +1,6 @@
+{
+  "name": "Book Folding Pattern Generator",
+  "description": "Create 'Measure, Mark, and Cut' book folding patterns from a black and white image. Upload an image, specify book dimensions, and get detailed cutting instructions for your art project.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
