@@ -13,33 +13,6 @@ interface PaywallProps {
 }
 
 const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
-  const handlePaymentClick = () => {
-    // Open Stripe in a new window
-    const stripeWindow = window.open(
-      'https://buy.stripe.com/test_fZufZi6y7beU3sWbVkbQY01',
-      'stripe-payment',
-      'width=800,height=600,scrollbars=yes,resizable=yes'
-    );
-
-    // Listen for the payment completion (you'll need to implement this)
-    // For now, we'll simulate with a timeout - replace this with actual payment verification
-    const checkPayment = () => {
-      if (stripeWindow?.closed) {
-        // Window was closed, assume payment was completed
-        // In production, you'd verify payment status with your backend
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        // Check again in 1 second
-        setTimeout(checkPayment, 1000);
-      }
-    };
-    
-    // Start checking after 2 seconds
-    setTimeout(checkPayment, 2000);
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-stone-200">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
@@ -50,12 +23,26 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
         <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
         
         <div className="space-y-4">
-          <button
-            onClick={handlePaymentClick}
-            className="block w-full bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
+          <a
+            href="https://buy.stripe.com/test_fZufZi6y7beU3sWbVkbQY01"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
           >
             Pay with Stripe
-          </button>
+          </a>
+          
+          <div className="border-t border-stone-200 pt-4">
+            <p className="text-sm text-stone-600 mb-3">
+              After completing payment, click the button below to unlock your cutting instructions:
+            </p>
+            <button
+              onClick={onSuccess}
+              className="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+            >
+              I've Completed Payment - Unlock Instructions
+            </button>
+          </div>
           
           {onCancel && (
             <button
