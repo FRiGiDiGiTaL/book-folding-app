@@ -13,12 +13,31 @@ interface PaywallProps {
 }
 
 const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
-  const handlePaymentSuccess = () => {
-    // In a real implementation, you'd verify the payment was successful
-    // For now, we'll simulate success after clicking
-    if (onSuccess) {
-      onSuccess();
-    }
+  const handlePaymentClick = () => {
+    // Open Stripe in a new window
+    const stripeWindow = window.open(
+      'https://buy.stripe.com/test_fZufZi6y7beU3sWbVkbQY01',
+      'stripe-payment',
+      'width=800,height=600,scrollbars=yes,resizable=yes'
+    );
+
+    // Listen for the payment completion (you'll need to implement this)
+    // For now, we'll simulate with a timeout - replace this with actual payment verification
+    const checkPayment = () => {
+      if (stripeWindow?.closed) {
+        // Window was closed, assume payment was completed
+        // In production, you'd verify payment status with your backend
+        if (onSuccess) {
+          onSuccess();
+        }
+      } else {
+        // Check again in 1 second
+        setTimeout(checkPayment, 1000);
+      }
+    };
+    
+    // Start checking after 2 seconds
+    setTimeout(checkPayment, 2000);
   };
 
   return (
@@ -31,15 +50,12 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
         <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
         
         <div className="space-y-4">
-          <a
-            href="https://buy.stripe.com/test_fZufZi6y7beU3sWbVkbQY01"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
-            onClick={handlePaymentSuccess}
+          <button
+            onClick={handlePaymentClick}
+            className="block w-full bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
           >
             Pay with Stripe
-          </a>
+          </button>
           
           {onCancel && (
             <button
@@ -234,7 +250,7 @@ function App() {
   };
 
   const handlePaymentSuccess = () => {
-    // This would be called after successful payment
+    // This would be called after successful payment verification
     if (results) {
       const pattern = results.pageMarks.map(page => 
         `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
@@ -245,8 +261,12 @@ function App() {
     }
   };
 
+  const handlePaymentCancel = () => {
+    setShowPaywall(false);
+  };
+
   if (showPaywall) {
-    return <Paywall onSuccess={handlePaymentSuccess} onCancel={() => setShowPaywall(false)} />;
+    return <Paywall onSuccess={handlePaymentSuccess} onCancel={handlePaymentCancel} />;
   }
 
   return (
