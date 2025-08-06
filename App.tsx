@@ -223,6 +223,7 @@ function App() {
         bookHeight,
         totalPages,
         padding
+        // Removed pattern generation - only happens after payment
       });
 
     } catch (err) {
@@ -233,11 +234,12 @@ function App() {
   };
 
   const handleGenerateInstructions = () => {
+    // Only show paywall - do NOT generate pattern yet
     setShowPaywall(true);
   };
 
   const handlePaymentSuccess = () => {
-    // This would be called after successful payment verification
+    // Generate the cutting instructions ONLY after payment
     if (results) {
       const pattern = results.pageMarks.map(page => 
         `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
