@@ -28,7 +28,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
         <p className="mb-6 text-stone-600">
           Get instant access to generate your custom book folding pattern cutting instructions.
         </p>
-        <p className="mb-6 text-2xl font-bold text-amber-800">Only $1.00</p>
+        <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
         
         <div className="space-y-4">
           <a
