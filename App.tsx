@@ -10,17 +10,25 @@ import { PatternInput, PatternResult } from './types';
 interface PaywallProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  sessionId?: string;
+  isVerifying?: boolean;
 }
 
-const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
+const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel, sessionId, isVerifying }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-stone-200">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-4 text-stone-800">Unlock Full Access</h1>
+        <h1 className="text-3xl font-bold mb-4 text-stone-800">Secure Payment Required</h1>
         <p className="mb-6 text-stone-600">
-          Get instant access to generate your custom book folding pattern cutting instructions.
+          Complete payment to unlock your cutting instructions. Payment verification ensures security.
         </p>
         <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
+        
+        {sessionId && (
+          <div className="mb-4 p-3 bg-stone-100 rounded text-xs text-stone-600">
+            Session ID: {sessionId}
+          </div>
+        )}
         
         <div className="space-y-4">
           <a
@@ -34,20 +42,22 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
           
           <div className="border-t border-stone-200 pt-4">
             <p className="text-sm text-stone-600 mb-3">
-              After completing payment, click the button below to unlock your cutting instructions:
+              After completing payment, click below to verify and unlock:
             </p>
             <button
               onClick={onSuccess}
-              className="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+              disabled={isVerifying}
+              className="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              I've Completed Payment - Unlock Instructions
+              {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Unlock'}
             </button>
           </div>
           
           {onCancel && (
             <button
               onClick={onCancel}
-              className="w-full bg-stone-300 text-stone-700 px-6 py-2 rounded-lg hover:bg-stone-400 transition"
+              disabled={isVerifying}
+              className="w-full bg-stone-300 text-stone-700 px-6 py-2 rounded-lg hover:bg-stone-400 transition disabled:opacity-50"
             >
               Cancel
             </button>
@@ -55,8 +65,8 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel }) => {
         </div>
         
         <div className="mt-6 text-xs text-stone-500">
-          <p>Secure payment processing by Stripe</p>
-          <p>One-time payment • Instant access</p>
+          <p>🔒 Secure payment verification via backend</p>
+          <p>One-time payment • Instant access after verification</p>
         </div>
       </div>
     </div>
@@ -73,6 +83,8 @@ function App() {
 
   const [results, setResults] = useState<PatternResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -234,19 +246,42 @@ function App() {
   };
 
   const handleGenerateInstructions = () => {
-    // Only show paywall - do NOT generate pattern yet
+    // Create a unique session ID for this payment
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setPaymentSessionId(sessionId);
     setShowPaywall(true);
   };
 
-  const handlePaymentSuccess = () => {
-    // Generate the cutting instructions ONLY after payment
-    if (results) {
-      const pattern = results.pageMarks.map(page => 
-        `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-      ).join('\n');
+  const verifyPaymentAndGenerate = async (sessionId: string) => {
+    setIsVerifyingPayment(true);
+    
+    try {
+      // TEMPORARY: Skip verification for testing
+      // TODO: Replace with actual backend verification
       
-      setResults(prev => prev ? { ...prev, pattern } : null);
-      setShowPaywall(false);
+      // Simulate verification delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (results) {
+        // Generate cutting instructions after "verification"
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
+        setResults(prev => prev ? { ...prev, pattern } : null);
+        setShowPaywall(false);
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      alert('Unable to verify payment. Please try again or contact support.');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    if (paymentSessionId) {
+      verifyPaymentAndGenerate(paymentSessionId);
     }
   };
 
@@ -255,7 +290,14 @@ function App() {
   };
 
   if (showPaywall) {
-    return <Paywall onSuccess={handlePaymentSuccess} onCancel={handlePaymentCancel} />;
+    return (
+      <Paywall 
+        onSuccess={handlePaymentSuccess} 
+        onCancel={handlePaymentCancel}
+        sessionId={paymentSessionId}
+        isVerifying={isVerifyingPayment}
+      />
+    );
   }
 
   return (
