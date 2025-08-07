@@ -32,7 +32,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel, sessionId, isVer
         
         <div className="space-y-4">
           <a
-            href="https://buy.stripe.com/test_fZufZi6y7beU3sWbVkbQY01"
+            href="https://buy.stripe.com/cNi28s8Gf0Ag9Rk0cCbQY00"
             target="_blank"
             rel="noopener noreferrer"
             className="block bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
