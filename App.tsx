@@ -144,6 +144,7 @@ function App() {
   });
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,6 +152,15 @@ function App() {
     setInput(prev => ({ ...prev, [name]: value }));
     setError(null);
   }, []);
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserEmail(e.target.value);
+    setError(null);
+  };
+
+  const isValidEmail = (email: string) => {
+    return email.includes('@') && email.includes('.') && email.length > 5;
+  };
 
   const handleFileChange = useCallback((file: File | null) => {
     setInput(prev => ({ ...prev, imageFile: file }));
@@ -303,7 +313,38 @@ function App() {
     }
   };
 
-  const handleGenerateInstructions = () => {
+  const handleGenerateInstructions = async () => {
+    // Validate email first
+    if (!isValidEmail(userEmail)) {
+      setError('Please enter a valid email address before generating instructions.');
+      return;
+    }
+
+    // Store email for later use
+    try {
+      // Option: Send to your backend
+      await fetch('/api/collect-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          sessionId: `session_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent
+        })
+      });
+      console.log('Email successfully saved to backend');
+    } catch (error) {
+      // If backend fails, at least log it locally for debugging
+      console.warn('Backend email save failed, logging locally:', {
+        email: userEmail,
+        timestamp: new Date().toISOString(),
+        error: error.message
+      });
+      
+      // Don't block user flow if email saving fails
+    }
+    
     // Check if payment is required
     if (!REQUIRE_PAYMENT) {
       // Free promotion mode - generate instructions immediately
@@ -317,9 +358,10 @@ function App() {
       return;
     }
     
-    // Normal paid mode - show paywall
+    // Normal paid mode - show paywall with pre-filled email
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setPaymentSessionId(sessionId);
+    setPaymentVerificationData({ email: userEmail, paymentId: '' });
     setShowPaywall(true);
   };
 
@@ -452,6 +494,24 @@ function App() {
                   placeholder="e.g. 1.0"
                 />
 
+                <div>
+                  <label htmlFor="userEmail" className="block text-sm font-medium text-stone-700">
+                    Email Address *
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="email"
+                      id="userEmail"
+                      value={userEmail}
+                      onChange={handleEmailChange}
+                      className="block w-full shadow-sm sm:text-sm border-orange-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-stone-500 mt-1">Required to generate cutting instructions</p>
+                </div>
+
                 {error && (
                   <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
                     {error}
@@ -465,6 +525,20 @@ function App() {
                 >
                   {isGenerating ? 'Processing...' : 'Generate Preview'}
                 </button>
+
+                {/* Show Generate Instructions button only after preview is generated */}
+                {results && (
+                  <button
+                    onClick={handleGenerateInstructions}
+                    disabled={!isValidEmail(userEmail)}
+                    className="w-full bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Generate Cutting Instructions
+                    {!isValidEmail(userEmail) && (
+                      <span className="text-sm block">Enter valid email first</span>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
