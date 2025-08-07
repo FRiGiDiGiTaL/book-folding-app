@@ -125,6 +125,9 @@ const Paywall: React.FC<PaywallProps> = ({
 };
 
 function App() {
+  // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
+  const REQUIRE_PAYMENT = false; // Change to false for free promotions
+  
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
     bookHeight: '',
@@ -301,7 +304,20 @@ function App() {
   };
 
   const handleGenerateInstructions = () => {
-    // Create a unique session ID for this payment
+    // Check if payment is required
+    if (!REQUIRE_PAYMENT) {
+      // Free promotion mode - generate instructions immediately
+      if (results) {
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
+        setResults(prev => prev ? { ...prev, pattern } : null);
+      }
+      return;
+    }
+    
+    // Normal paid mode - show paywall
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setPaymentSessionId(sessionId);
     setShowPaywall(true);
