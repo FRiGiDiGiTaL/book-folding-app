@@ -126,7 +126,7 @@ const Paywall: React.FC<PaywallProps> = ({
 
 function App() {
   // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
-  const REQUIRE_PAYMENT = true; // Change to false for free promotions
+  const REQUIRE_PAYMENT = false; // Change to false for free promotions
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
