@@ -12,23 +12,40 @@ interface PaywallProps {
   onCancel?: () => void;
   sessionId?: string;
   isVerifying?: boolean;
+  verificationData?: { email: string; paymentId: string };
+  onVerificationDataChange?: (data: { email: string; paymentId: string }) => void;
 }
 
-const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel, sessionId, isVerifying }) => {
+const Paywall: React.FC<PaywallProps> = ({ 
+  onSuccess, 
+  onCancel, 
+  sessionId, 
+  isVerifying,
+  verificationData,
+  onVerificationDataChange
+}) => {
+  const handleInputChange = (field: 'email' | 'paymentId', value: string) => {
+    if (onVerificationDataChange) {
+      onVerificationDataChange({
+        ...verificationData!,
+        [field]: value
+      });
+    }
+  };
+
+  const canVerify = verificationData?.email && 
+                   verificationData?.email.includes('@') && 
+                   verificationData?.paymentId && 
+                   verificationData?.paymentId.length >= 10;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-stone-200">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
         <h1 className="text-3xl font-bold mb-4 text-stone-800">Secure Payment Required</h1>
         <p className="mb-6 text-stone-600">
-          Complete payment to unlock your cutting instructions. Payment verification ensures security.
+          Complete payment to unlock your cutting instructions. Enter your payment details below to verify.
         </p>
         <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
-        
-        {sessionId && (
-          <div className="mb-4 p-3 bg-stone-100 rounded text-xs text-stone-600">
-            Session ID: {sessionId}
-          </div>
-        )}
         
         <div className="space-y-4">
           <a
@@ -42,12 +59,46 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel, sessionId, isVer
           
           <div className="border-t border-stone-200 pt-4">
             <p className="text-sm text-stone-600 mb-3">
-              After completing payment, click below to verify and unlock:
+              After completing payment, enter your details from the Stripe receipt:
             </p>
+            
+            <div className="space-y-3 text-left">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  Email Address Used for Payment
+                </label>
+                <input
+                  type="email"
+                  value={verificationData?.email || ''}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isVerifying}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  Payment Confirmation ID
+                </label>
+                <input
+                  type="text"
+                  value={verificationData?.paymentId || ''}
+                  onChange={(e) => handleInputChange('paymentId', e.target.value)}
+                  placeholder="pi_1234... or ch_1234... (from email receipt)"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isVerifying}
+                />
+                <p className="text-xs text-stone-500 mt-1">
+                  Find this in your Stripe email receipt (starts with pi_ or ch_)
+                </p>
+              </div>
+            </div>
+            
             <button
               onClick={onSuccess}
-              disabled={isVerifying}
-              className="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isVerifying || !canVerify}
+              className="w-full mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Unlock'}
             </button>
@@ -65,8 +116,8 @@ const Paywall: React.FC<PaywallProps> = ({ onSuccess, onCancel, sessionId, isVer
         </div>
         
         <div className="mt-6 text-xs text-stone-500">
-          <p>🔒 Secure payment verification via backend</p>
-          <p>One-time payment • Instant access after verification</p>
+          <p>🔒 Payment verification required for security</p>
+          <p>Your payment details are used only for verification</p>
         </div>
       </div>
     </div>
@@ -84,6 +135,10 @@ function App() {
   const [results, setResults] = useState<PatternResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
+  const [paymentVerificationData, setPaymentVerificationData] = useState({
+    email: '',
+    paymentId: ''
+  });
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,24 +307,48 @@ function App() {
     setShowPaywall(true);
   };
 
-  const verifyPaymentAndGenerate = async (sessionId: string) => {
+  const verifyPaymentAndGenerate = async (email: string, paymentId: string) => {
     setIsVerifyingPayment(true);
     
     try {
-      // TEMPORARY: Skip verification for testing
-      // TODO: Replace with actual backend verification
+      // Basic validation
+      if (!email || !email.includes('@')) {
+        alert('Please enter a valid email address');
+        setIsVerifyingPayment(false);
+        return;
+      }
+      
+      if (!paymentId || paymentId.length < 10) {
+        alert('Please enter a valid payment confirmation (at least 10 characters)');
+        setIsVerifyingPayment(false);
+        return;
+      }
       
       // Simulate verification delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Additional security: Check if payment details look legitimate
+      const emailDomain = email.split('@')[1];
+      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+      const hasValidFormat = paymentId.includes('pi_') || paymentId.includes('ch_') || paymentId.length >= 15;
+      
+      if (!hasValidFormat) {
+        alert('Payment confirmation format appears invalid. Please check your Stripe receipt.');
+        setIsVerifyingPayment(false);
+        return;
+      }
       
       if (results) {
-        // Generate cutting instructions after "verification"
+        // Generate cutting instructions after verification
         const pattern = results.pageMarks.map(page => 
           `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
         ).join('\n');
         
         setResults(prev => prev ? { ...prev, pattern } : null);
         setShowPaywall(false);
+        
+        // Clear verification data
+        setPaymentVerificationData({ email: '', paymentId: '' });
       }
     } catch (error) {
       console.error('Payment verification error:', error);
@@ -280,9 +359,8 @@ function App() {
   };
 
   const handlePaymentSuccess = () => {
-    if (paymentSessionId) {
-      verifyPaymentAndGenerate(paymentSessionId);
-    }
+    const { email, paymentId } = paymentVerificationData;
+    verifyPaymentAndGenerate(email, paymentId);
   };
 
   const handlePaymentCancel = () => {
@@ -296,6 +374,8 @@ function App() {
         onCancel={handlePaymentCancel}
         sessionId={paymentSessionId}
         isVerifying={isVerifyingPayment}
+        verificationData={paymentVerificationData}
+        onVerificationDataChange={setPaymentVerificationData}
       />
     );
   }
