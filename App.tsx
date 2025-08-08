@@ -126,7 +126,7 @@ const Paywall: React.FC<PaywallProps> = ({
 
 function App() {
   // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
-  const REQUIRE_PAYMENT = false; // Change to false for free promotions
+  const REQUIRE_PAYMENT = true; // Change to false for free promotions
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
@@ -212,6 +212,21 @@ function App() {
     });
   };
 
+  const calculateDepthFromBrightness = (brightness: number): number => {
+    // Brightness range: 0-255
+    // Depth range: 40mm (black) to 5mm (white)
+    const minDepth = 5;  // mm
+    const maxDepth = 40; // mm
+    
+    // Invert brightness (darker = deeper)
+    // brightness 0 (black) -> depth 40mm
+    // brightness 255 (white) -> depth 5mm
+    const normalizedBrightness = brightness / 255;
+    const depth = maxDepth - (normalizedBrightness * (maxDepth - minDepth));
+    
+    return Math.round(depth * 10) / 10; // Round to 1 decimal place
+  };
+
   const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -240,12 +255,21 @@ function App() {
           // Sample the column of pixels for this sheet
           const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
           
+          // Calculate average brightness for this column (for depth calculation)
+          let totalBrightness = 0;
+          let pixelCount = 0;
+          
           let inBlackRegion = false;
           let regionStart = 0;
           
           for (let y = 0; y < canvas.height; y++) {
             const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const isBlack = imageData.data[pixelIndex] < 128; // Black pixel
+            const pixelBrightness = imageData.data[pixelIndex]; // Red channel (grayscale)
+            const isBlack = pixelBrightness < 128; // Black pixel threshold
+            
+            // Accumulate brightness for average calculation
+            totalBrightness += pixelBrightness;
+            pixelCount++;
             
             if (isBlack && !inBlackRegion) {
               // Start of black region
@@ -264,7 +288,11 @@ function App() {
             marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
           }
           
-          pageMarks.push({ pageRange, marks });
+          // Calculate average brightness for this column
+          const averageBrightness = pixelCount > 0 ? totalBrightness / pixelCount : 255;
+          const depth = calculateDepthFromBrightness(averageBrightness);
+          
+          pageMarks.push({ pageRange, marks, depth });
         }
         
         resolve(pageMarks);
@@ -349,11 +377,15 @@ function App() {
     if (!REQUIRE_PAYMENT) {
       // Free promotion mode - generate instructions immediately
       if (results) {
-        const pattern = results.pageMarks.map(page => 
-          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-        ).join('\n');
+        const pattern = results.pageMarks.map(page => {
+          const markPositions = page.marks.join(', ');
+          return `${page.pageRange.padEnd(10)} ${markPositions.padEnd(20)} ${page.depth}mm`;
+        }).join('\n');
         
-        setResults(prev => prev ? { ...prev, pattern } : null);
+        // Add header to pattern
+        const patternWithHeader = `PAGE RANGE  CUT POSITIONS (cm)    DEPTH\n${'='.repeat(50)}\n${pattern}`;
+        
+        setResults(prev => prev ? { ...prev, pattern: patternWithHeader } : null);
       }
       return;
     }
