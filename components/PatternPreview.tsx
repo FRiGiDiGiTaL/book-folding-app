@@ -11,9 +11,9 @@ interface PatternPreviewProps {
 export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookHeight, totalPages }) => {
   const sheets = totalPages / 2;
 
-  // Render at manageable scale
-  const previewWidth = Math.max(400, sheets);
-  const previewHeight = Math.max(200, bookHeight * 8);
+  // Render at manageable scale - now correctly oriented vertically like a book
+  const previewWidth = Math.max(300, sheets * 8); // Width represents the number of sheets
+  const previewHeight = Math.max(400, bookHeight * 20); // Height represents book page height
 
   // Calculate color intensity based on cut depth
   const getDepthColor = (depth: number): string => {
@@ -38,18 +38,32 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
           className="bg-stone-50 border border-stone-200 rounded"
         >
           {/* Book block background */}
-          <rect x="0" y="0" width={sheets} height={bookHeight} fill="#f5f5f4" stroke="#d6d3d1" strokeWidth="0.1" />
+          <rect x="0" y="0" width={sheets} height={bookHeight} fill="#f5f5f4" stroke="#d6d3d1" strokeWidth="0.02" />
           
-          {/* Grid lines for reference */}
+          {/* Horizontal grid lines for height reference */}
+          {Array.from({ length: Math.floor(bookHeight / 2) + 1 }, (_, i) => i * 2).map(y => (
+            <line
+              key={`grid-h-${y}`}
+              x1={0}
+              y1={y}
+              x2={sheets}
+              y2={y}
+              stroke="#e7e5e4"
+              strokeWidth="0.01"
+              opacity="0.3"
+            />
+          ))}
+          
+          {/* Vertical grid lines for sheet reference */}
           {Array.from({ length: Math.floor(sheets / 10) + 1 }, (_, i) => i * 10).map(x => (
             <line
-              key={`grid-${x}`}
+              key={`grid-v-${x}`}
               x1={x}
               y1={0}
               x2={x}
               y2={bookHeight}
               stroke="#e7e5e4"
-              strokeWidth="0.05"
+              strokeWidth="0.01"
               opacity="0.5"
             />
           ))}
@@ -90,12 +104,12 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
                   return cutRegions;
                 })()}
                 
-                {/* Page range label (show every 10th page for readability) */}
-                {index % 10 === 0 && (
+                {/* Page range label (show every 20th page for readability in vertical layout) */}
+                {index % 20 === 0 && (
                   <text
                     x={index + 0.5}
-                    y={bookHeight - 0.5}
-                    fontSize="0.8"
+                    y={bookHeight - 0.3}
+                    fontSize={Math.max(0.3, bookHeight * 0.02)}
                     textAnchor="middle"
                     fill="#78716c"
                     className="select-none"
@@ -107,10 +121,10 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
             );
           })}
           
-          {/* Cut depth legend */}
-          <g transform={`translate(${sheets - 15}, 2)`}>
-            <rect x="0" y="0" width="12" height="8" fill="white" stroke="#d6d3d1" strokeWidth="0.1" opacity="0.9" rx="0.5" />
-            <text x="1" y="1.5" fontSize="0.7" fill="#78716c" className="font-semibold">Cut Depth Guide</text>
+          {/* Cut depth legend - positioned at top right */}
+          <g transform={`translate(${Math.max(0, sheets - 12)}, 1)`}>
+            <rect x="0" y="0" width="10" height="6" fill="white" stroke="#d6d3d1" strokeWidth="0.02" opacity="0.95" rx="0.2" />
+            <text x="1" y="1" fontSize={Math.max(0.4, bookHeight * 0.02)} fill="#78716c" className="font-semibold">Cut Depth</text>
             
             {/* Depth gradient bar */}
             <defs>
@@ -120,10 +134,10 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
                 <stop offset="100%" stopColor="rgb(60,60,60)" />
               </linearGradient>
             </defs>
-            <rect x="1" y="2.5" width="10" height="1" fill="url(#cutDepthGradient)" />
-            <text x="1" y="4.5" fontSize="0.5" fill="#78716c">3mm</text>
-            <text x="8.5" y="4.5" fontSize="0.5" fill="#78716c">40mm</text>
-            <text x="1" y="6" fontSize="0.6" fill="#78716c">Shallow → Deep</text>
+            <rect x="1" y="2" width="8" height="0.8" fill="url(#cutDepthGradient)" />
+            <text x="1" y="3.5" fontSize={Math.max(0.3, bookHeight * 0.015)} fill="#78716c">3mm</text>
+            <text x="7" y="3.5" fontSize={Math.max(0.3, bookHeight * 0.015)} fill="#78716c">40mm</text>
+            <text x="1" y="5" fontSize={Math.max(0.35, bookHeight * 0.018)} fill="#78716c">Light → Deep</text>
           </g>
         </svg>
       </div>
