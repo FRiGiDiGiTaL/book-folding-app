@@ -6,6 +6,7 @@ import { InstructionsPanel } from './components/InstructionsPanel';
 import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
 import { PatternInput, PatternResult } from './types';
+
 // Inline Paywall component
 interface PaywallProps {
   onSuccess?: () => void;
@@ -126,7 +127,7 @@ const Paywall: React.FC<PaywallProps> = ({
 
 function App() {
   // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
-  const REQUIRE_PAYMENT = false; // Change to false for free promotions
+  const REQUIRE_PAYMENT = true; // Change to false for free promotions
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
@@ -193,14 +194,13 @@ function App() {
         // Draw and resize the image
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
         
-        // Convert to grayscale and apply threshold
+        // Convert to grayscale but keep the full range (no threshold)
         const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
         
         for (let i = 0; i < data.length; i += 4) {
           const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-          const bw = gray < 128 ? 0 : 255; // Threshold to black/white
-          data[i] = data[i + 1] = data[i + 2] = bw;
+          data[i] = data[i + 1] = data[i + 2] = gray; // Keep grayscale, no threshold
         }
         
         ctx.putImageData(imageData, 0, 0);
@@ -210,6 +210,21 @@ function App() {
       img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(imageFile);
     });
+  };
+
+  const calculateDepthFromBrightness = (brightness: number): number => {
+    // Brightness range: 0-255
+    // Depth range: 40mm (black) to 3mm (white)
+    const minDepth = 3;  // mm for white/light areas
+    const maxDepth = 40; // mm for black/dark areas
+    
+    // Invert brightness (darker = deeper)
+    // Apply a curve to make depth changes more dramatic in darker areas
+    const normalizedBrightness = brightness / 255;
+    const curvedBrightness = Math.pow(normalizedBrightness, 1.8); // Curve for more dramatic depth in shadows
+    const depth = maxDepth - (curvedBrightness * (maxDepth - minDepth));
+    
+    return Math.round(depth * 10) / 10; // Round to 1 decimal place
   };
 
   const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
@@ -235,36 +250,91 @@ function App() {
         
         for (let sheet = 0; sheet < sheets; sheet++) {
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
-          const marks: number[] = [];
           
           // Sample the column of pixels for this sheet
           const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
           
-          let inBlackRegion = false;
-          let regionStart = 0;
+          // Collect all brightness values and positions for this column
+          const columnData: Array<{y: number, brightness: number, position: number}> = [];
           
           for (let y = 0; y < canvas.height; y++) {
             const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const isBlack = imageData.data[pixelIndex] < 128; // Black pixel
+            const brightness = imageData.data[pixelIndex]; // Red channel (grayscale)
+            const position = (y / canvas.height) * usableHeight + padding;
             
-            if (isBlack && !inBlackRegion) {
-              // Start of black region
-              inBlackRegion = true;
-              regionStart = (y / canvas.height) * usableHeight + padding;
-            } else if (!isBlack && inBlackRegion) {
-              // End of black region
-              inBlackRegion = false;
-              const regionEnd = (y / canvas.height) * usableHeight + padding;
-              marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
+            columnData.push({ y, brightness, position });
+          }
+          
+          // Calculate average brightness for overall depth
+          const avgBrightness = columnData.reduce((sum, pixel) => sum + pixel.brightness, 0) / columnData.length;
+          const overallDepth = calculateDepthFromBrightness(avgBrightness);
+          
+          // Generate regions based on brightness thresholds
+          const regions: Array<{start: number, end: number, depth: number}> = [];
+          const marks: number[] = [];
+          
+          let currentRegion: {start: number, brightness: number[], startY: number} | null = null;
+          const foldThreshold = 180; // Pixels darker than this will be folded (more lenient than before)
+          
+          for (let i = 0; i < columnData.length; i++) {
+            const pixel = columnData[i];
+            const shouldFold = pixel.brightness < foldThreshold;
+            
+            if (shouldFold && !currentRegion) {
+              // Start new folding region
+              currentRegion = {
+                start: pixel.position,
+                brightness: [pixel.brightness],
+                startY: pixel.y
+              };
+            } else if (shouldFold && currentRegion) {
+              // Continue current region
+              currentRegion.brightness.push(pixel.brightness);
+            } else if (!shouldFold && currentRegion) {
+              // End current region
+              const regionAvgBrightness = currentRegion.brightness.reduce((a, b) => a + b, 0) / currentRegion.brightness.length;
+              const regionDepth = calculateDepthFromBrightness(regionAvgBrightness);
+              
+              const region = {
+                start: currentRegion.start,
+                end: pixel.position,
+                depth: regionDepth
+              };
+              
+              regions.push(region);
+              marks.push(region.start, region.end);
+              currentRegion = null;
             }
           }
           
-          // Handle case where black region extends to bottom
-          if (inBlackRegion) {
-            marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
+          // Handle region extending to bottom
+          if (currentRegion) {
+            const regionAvgBrightness = currentRegion.brightness.reduce((a, b) => a + b, 0) / currentRegion.brightness.length;
+            const regionDepth = calculateDepthFromBrightness(regionAvgBrightness);
+            
+            const region = {
+              start: currentRegion.start,
+              end: usableHeight + padding,
+              depth: regionDepth
+            };
+            
+            regions.push(region);
+            marks.push(region.start, region.end);
           }
           
-          pageMarks.push({ pageRange, marks });
+          // Round all marks to 1 decimal place
+          const roundedMarks = marks.map(mark => parseFloat(mark.toFixed(1)));
+          
+          pageMarks.push({ 
+            pageRange, 
+            marks: roundedMarks, 
+            depth: overallDepth,
+            regions: regions.map(r => ({
+              ...r,
+              start: parseFloat(r.start.toFixed(1)),
+              end: parseFloat(r.end.toFixed(1))
+            }))
+          });
         }
         
         resolve(pageMarks);
@@ -290,10 +360,10 @@ function App() {
       const padding = parseFloat(input.padding);
       const sheets = totalPages / 2;
 
-      // Process the image
+      // Process the image (now keeps grayscale instead of black/white)
       const processedImage = await processImage(input.imageFile!, sheets, Math.floor(bookHeight * 10));
       
-      // Generate page marks
+      // Generate page marks with depth information
       const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding);
 
       setResults({
@@ -303,7 +373,6 @@ function App() {
         bookHeight,
         totalPages,
         padding
-        // Removed pattern generation - only happens after payment
       });
 
     } catch (err) {
@@ -311,6 +380,41 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const generatePatternText = (pageMarks: any[]): string => {
+    const patternLines = pageMarks.map(page => {
+      if (page.marks.length === 0) {
+        return `${page.pageRange.padEnd(12)} ${'No folds needed'.padEnd(35)} ${page.depth}mm`;
+      }
+      
+      // Group marks into pairs and show with regions if available
+      const regions: string[] = [];
+      
+      if (page.regions && page.regions.length > 0) {
+        // Use detailed region information
+        page.regions.forEach((region: any) => {
+          regions.push(`${region.start}→${region.end}cm(${region.depth}mm)`);
+        });
+      } else {
+        // Fall back to simple mark pairs
+        for (let i = 0; i < page.marks.length; i += 2) {
+          if (page.marks[i + 1] !== undefined) {
+            regions.push(`${page.marks[i]}→${page.marks[i + 1]}cm`);
+          }
+        }
+      }
+      
+      const regionText = regions.join(', ');
+      return `${page.pageRange.padEnd(12)} ${regionText.padEnd(35)} ${page.depth}mm`;
+    });
+
+    const header = `PAGE RANGE   FOLD POSITIONS & DEPTHS              AVG DEPTH\n${'='.repeat(70)}`;
+    return `${header}\n${patternLines.join('\n')}\n\n` +
+           `Instructions:\n` +
+           `- Numbers show fold start→end positions in cm from top of page\n` +
+           `- Depth values indicate how deep to fold (deeper = more dramatic effect)\n` +
+           `- For projected folds: fold toward spine, for recessed: fold away from spine`;
   };
 
   const handleGenerateInstructions = async () => {
@@ -322,7 +426,6 @@ function App() {
 
     // Store email for later use
     try {
-      // Option: Send to your backend
       await fetch('/api/collect-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -335,24 +438,18 @@ function App() {
       });
       console.log('Email successfully saved to backend');
     } catch (error) {
-      // If backend fails, at least log it locally for debugging
       console.warn('Backend email save failed, logging locally:', {
         email: userEmail,
         timestamp: new Date().toISOString(),
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
-      // Don't block user flow if email saving fails
     }
     
     // Check if payment is required
     if (!REQUIRE_PAYMENT) {
       // Free promotion mode - generate instructions immediately
       if (results) {
-        const pattern = results.pageMarks.map(page => 
-          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-        ).join('\n');
-        
+        const pattern = generatePatternText(results.pageMarks);
         setResults(prev => prev ? { ...prev, pattern } : null);
       }
       return;
@@ -386,8 +483,6 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Additional security: Check if payment details look legitimate
-      const emailDomain = email.split('@')[1];
-      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
       const hasValidFormat = paymentId.includes('pi_') || paymentId.includes('ch_') || paymentId.length >= 15;
       
       if (!hasValidFormat) {
@@ -398,10 +493,7 @@ function App() {
       
       if (results) {
         // Generate cutting instructions after verification
-        const pattern = results.pageMarks.map(page => 
-          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-        ).join('\n');
-        
+        const pattern = generatePatternText(results.pageMarks);
         setResults(prev => prev ? { ...prev, pattern } : null);
         setShowPaywall(false);
         
@@ -445,11 +537,11 @@ function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <LogoIcon />
-            <h1 className="text-3xl font-bold text-stone-800">Book Folding Pattern Generator</h1>
+            <h1 className="text-3xl font-bold text-stone-800">Advanced Book Folding Pattern Generator</h1>
           </div>
           <p className="text-stone-600 max-w-2xl mx-auto">
-            Create precise "Measure, Mark, and Cut" patterns from your images. 
-            Perfect for book folding art projects and sculptural designs.
+            Create sophisticated depth-based "Measure, Mark, and Cut" patterns from your images. 
+            Now with variable depth support for realistic shadows and gradients.
           </p>
         </div>
 
@@ -467,6 +559,13 @@ function App() {
                   file={input.imageFile}
                   onFileChange={handleFileChange}
                 />
+                
+                <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>New!</strong> This version supports grayscale images with variable depth folding. 
+                    Dark areas will fold deeper (up to 40mm), light areas fold shallow (3mm minimum).
+                  </p>
+                </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <NumberInput
@@ -533,7 +632,7 @@ function App() {
                     disabled={!isValidEmail(userEmail)}
                     className="w-full bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Generate Cutting Instructions
+                    Generate Depth-Based Instructions
                     {!isValidEmail(userEmail) && (
                       <span className="text-sm block">Enter valid email first</span>
                     )}
@@ -545,7 +644,7 @@ function App() {
             {/* Preview */}
             {results && (
               <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-lg font-semibold text-stone-700 mb-3">Pattern Preview</h3>
+                <h3 className="text-lg font-semibold text-stone-700 mb-3">Depth Pattern Preview</h3>
                 <div className="border border-stone-300 rounded-lg overflow-hidden">
                   <PatternPreview 
                     pageMarks={results.pageMarks}
@@ -554,6 +653,9 @@ function App() {
                     padding={results.padding}
                   />
                 </div>
+                <p className="text-sm text-stone-500 mt-2">
+                  Darker regions show deeper folds. This preview shows the overall folding pattern.
+                </p>
               </div>
             )}
           </div>
