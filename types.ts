@@ -1,4 +1,3 @@
-
 export interface PatternInput {
   imageFile: File | null;
   bookHeight: string;
@@ -9,6 +8,12 @@ export interface PatternInput {
 export interface PageMark {
   pageRange: string;
   marks: number[];
+  depth: number;
+  regions?: Array<{
+    start: number;
+    end: number;
+    depth: number;
+  }>;
 }
 
 export interface PatternResult {
