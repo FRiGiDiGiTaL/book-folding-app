@@ -604,23 +604,7 @@ function App() {
               </div>
             </div>
 
-            {/* Preview */}
-            {results && (
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-lg font-semibold text-stone-700 mb-3">Cut Pattern Preview</h3>
-                <div className="border border-stone-300 rounded-lg overflow-hidden">
-                  <PatternPreview 
-                    pageMarks={results.pageMarks}
-                    bookHeight={results.bookHeight}
-                    totalPages={results.totalPages}
-                    padding={results.padding}
-                  />
-                </div>
-                <p className="text-sm text-stone-500 mt-2">
-                  Darker regions show deeper cuts. This preview shows the overall cutting pattern.
-                </p>
-              </div>
-            )}
+
           </div>
 
           {/* Right Column - Results */}
