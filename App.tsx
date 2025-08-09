@@ -127,7 +127,7 @@ const Paywall: React.FC<PaywallProps> = ({
 
 function App() {
   // 🎯 PROMOTION TOGGLE: Set to true to require payment
-  const REQUIRE_PAYMENT = false; // Change to true for production
+  const REQUIRE_PAYMENT = true; // Change to true for production
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
