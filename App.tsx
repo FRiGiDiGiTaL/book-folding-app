@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useCallback } from 'react';
 import { FileInput } from './components/FileInput';
 import { NumberInput } from './components/NumberInput';
@@ -7,8 +6,7 @@ import { InstructionsPanel } from './components/InstructionsPanel';
 import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
 import { PatternInput, PatternResult } from './types';
-
-// ===== Inline Paywall Component =====
+// Inline Paywall component
 interface PaywallProps {
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -18,10 +16,10 @@ interface PaywallProps {
   onVerificationDataChange?: (data: { email: string; paymentId: string }) => void;
 }
 
-const Paywall: React.FC<PaywallProps> = ({
-  onSuccess,
-  onCancel,
-  sessionId,
+const Paywall: React.FC<PaywallProps> = ({ 
+  onSuccess, 
+  onCancel, 
+  sessionId, 
   isVerifying,
   verificationData,
   onVerificationDataChange
@@ -35,11 +33,10 @@ const Paywall: React.FC<PaywallProps> = ({
     }
   };
 
-  const canVerify =
-    verificationData?.email &&
-    verificationData?.email.includes('@') &&
-    verificationData?.paymentId &&
-    verificationData?.paymentId.length >= 10;
+  const canVerify = verificationData?.email && 
+                   verificationData?.email.includes('@') && 
+                   verificationData?.paymentId && 
+                   verificationData?.paymentId.length >= 10;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-stone-200">
@@ -49,7 +46,7 @@ const Paywall: React.FC<PaywallProps> = ({
           Complete payment to unlock your cutting instructions. Enter your payment details below to verify.
         </p>
         <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
-
+        
         <div className="space-y-4">
           <a
             href="https://buy.stripe.com/cNi28s8Gf0Ag9Rk0cCbQY00"
@@ -59,12 +56,12 @@ const Paywall: React.FC<PaywallProps> = ({
           >
             Pay with Stripe
           </a>
-
+          
           <div className="border-t border-stone-200 pt-4">
             <p className="text-sm text-stone-600 mb-3">
               After completing payment, enter your details from the Stripe receipt:
             </p>
-
+            
             <div className="space-y-3 text-left">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">
@@ -79,7 +76,7 @@ const Paywall: React.FC<PaywallProps> = ({
                   disabled={isVerifying}
                 />
               </div>
-
+              
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">
                   Payment Confirmation ID
@@ -88,7 +85,7 @@ const Paywall: React.FC<PaywallProps> = ({
                   type="text"
                   value={verificationData?.paymentId || ''}
                   onChange={(e) => handleInputChange('paymentId', e.target.value)}
-                  placeholder="pi_1234... or ch_1234..."
+                  placeholder="pi_1234... or ch_1234... (from email receipt)"
                   className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={isVerifying}
                 />
@@ -97,7 +94,7 @@ const Paywall: React.FC<PaywallProps> = ({
                 </p>
               </div>
             </div>
-
+            
             <button
               onClick={onSuccess}
               disabled={isVerifying || !canVerify}
@@ -106,7 +103,7 @@ const Paywall: React.FC<PaywallProps> = ({
               {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Unlock'}
             </button>
           </div>
-
+          
           {onCancel && (
             <button
               onClick={onCancel}
@@ -117,7 +114,7 @@ const Paywall: React.FC<PaywallProps> = ({
             </button>
           )}
         </div>
-
+        
         <div className="mt-6 text-xs text-stone-500">
           <p>🔒 Payment verification required for security</p>
           <p>Your payment details are used only for verification</p>
@@ -127,10 +124,10 @@ const Paywall: React.FC<PaywallProps> = ({
   );
 };
 
-// ===== Main App =====
 function App() {
-  const REQUIRE_PAYMENT = false;
-
+  // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
+  const REQUIRE_PAYMENT = false; // Change to false for free promotions
+  
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
     bookHeight: '',
@@ -141,7 +138,10 @@ function App() {
   const [results, setResults] = useState<PatternResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
-  const [paymentVerificationData, setPaymentVerificationData] = useState({ email: '', paymentId: '' });
+  const [paymentVerificationData, setPaymentVerificationData] = useState({
+    email: '',
+    paymentId: ''
+  });
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [userEmail, setUserEmail] = useState('');
@@ -149,7 +149,7 @@ function App() {
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setInput((prev) => ({ ...prev, [name]: value }));
+    setInput(prev => ({ ...prev, [name]: value }));
     setError(null);
   }, []);
 
@@ -158,10 +158,12 @@ function App() {
     setError(null);
   };
 
-  const isValidEmail = (email: string) => email.includes('@') && email.includes('.') && email.length > 5;
+  const isValidEmail = (email: string) => {
+    return email.includes('@') && email.includes('.') && email.length > 5;
+  };
 
   const handleFileChange = useCallback((file: File | null) => {
-    setInput((prev) => ({ ...prev, imageFile: file }));
+    setInput(prev => ({ ...prev, imageFile: file }));
     setError(null);
   }, []);
 
@@ -173,70 +175,190 @@ function App() {
     return null;
   };
 
-  const calculateDepthFromBrightness = (brightness: number): number => {
-    const minDepth = 5;
-    const maxDepth = 40;
-    const normalizedBrightness = brightness / 255;
-    const depth = maxDepth - normalizedBrightness * (maxDepth - minDepth);
-    return Math.round(depth * 10) / 10;
-  };
-
   const processImage = async (imageFile: File, targetWidth: number, targetHeight: number): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+
       if (!ctx) {
         reject(new Error('Could not get canvas context'));
         return;
       }
+
       img.onload = () => {
         canvas.width = targetWidth;
         canvas.height = targetHeight;
+        
+        // Draw and resize the image
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        
+        // Convert to grayscale and apply threshold
         const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
+        
         for (let i = 0; i < data.length; i += 4) {
           const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-          const bw = gray < 128 ? 0 : 255;
+          const bw = gray < 128 ? 0 : 255; // Threshold to black/white
           data[i] = data[i + 1] = data[i + 2] = bw;
         }
+        
         ctx.putImageData(imageData, 0, 0);
         resolve(canvas.toDataURL());
       };
+
       img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(imageFile);
     });
   };
 
   const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
-    // unchanged logic, omitted for brevity
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    return new Promise<any[]>((resolve, reject) => {
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        
+        const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+        if (!imageData) {
+          reject(new Error('Could not get image data'));
+          return;
+        }
+        
+        const sheets = totalPages / 2;
+        const usableHeight = bookHeight - (2 * padding);
+        const pageMarks = [];
+        
+        for (let sheet = 0; sheet < sheets; sheet++) {
+          const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
+          const marks: number[] = [];
+          
+          // Sample the column of pixels for this sheet
+          const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
+          
+          let inBlackRegion = false;
+          let regionStart = 0;
+          
+          for (let y = 0; y < canvas.height; y++) {
+            const pixelIndex = (y * canvas.width + pixelColumn) * 4;
+            const isBlack = imageData.data[pixelIndex] < 128; // Black pixel
+            
+            if (isBlack && !inBlackRegion) {
+              // Start of black region
+              inBlackRegion = true;
+              regionStart = (y / canvas.height) * usableHeight + padding;
+            } else if (!isBlack && inBlackRegion) {
+              // End of black region
+              inBlackRegion = false;
+              const regionEnd = (y / canvas.height) * usableHeight + padding;
+              marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
+            }
+          }
+          
+          // Handle case where black region extends to bottom
+          if (inBlackRegion) {
+            marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
+          }
+          
+          pageMarks.push({ pageRange, marks });
+        }
+        
+        resolve(pageMarks);
+      };
+      
+      img.src = processedImageData;
+    });
   };
 
   const generatePreview = async () => {
-    // unchanged logic, omitted for brevity
+    const validationError = validateInput();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const bookHeight = parseFloat(input.bookHeight);
+      const totalPages = parseInt(input.totalPages);
+      const padding = parseFloat(input.padding);
+      const sheets = totalPages / 2;
+
+      // Process the image
+      const processedImage = await processImage(input.imageFile!, sheets, Math.floor(bookHeight * 10));
+      
+      // Generate page marks
+      const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding);
+
+      setResults({
+        processedImage,
+        filename: input.imageFile!.name,
+        pageMarks,
+        bookHeight,
+        totalPages,
+        padding
+        // Removed pattern generation - only happens after payment
+      });
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while processing the image.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleGenerateInstructions = async () => {
+    // Validate email first
     if (!isValidEmail(userEmail)) {
       setError('Please enter a valid email address before generating instructions.');
       return;
     }
 
+    // Store email for later use
+    try {
+      // Option: Send to your backend
+      await fetch('/api/collect-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          sessionId: `session_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent
+        })
+      });
+      console.log('Email successfully saved to backend');
+    } catch (error) {
+      // If backend fails, at least log it locally for debugging
+      console.warn('Backend email save failed, logging locally:', {
+        email: userEmail,
+        timestamp: new Date().toISOString(),
+        error: error.message
+      });
+      
+      // Don't block user flow if email saving fails
+    }
+    
+    // Check if payment is required
     if (!REQUIRE_PAYMENT) {
+      // Free promotion mode - generate instructions immediately
       if (results) {
-        const pattern = results.pageMarks
-          .map((page) => {
-            const cuts = page.marks.join(', ');
-            return `${page.pageRange.padEnd(10)}${cuts.padEnd(28)}${page.depth.toString().padEnd(6)}mm`;
-          })
-          .join('\n');
-        const patternWithHeader = `PAGE RANGE  CUT POSITIONS (cm)           DEPTH\n${'='.repeat(55)}\n${pattern}`;
-        setResults((prev) => (prev ? { ...prev, pattern: patternWithHeader } : null));
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
+        setResults(prev => prev ? { ...prev, pattern } : null);
       }
       return;
     }
-
+    
+    // Normal paid mode - show paywall with pre-filled email
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setPaymentSessionId(sessionId);
     setPaymentVerificationData({ email: userEmail, paymentId: '' });
@@ -244,17 +366,53 @@ function App() {
   };
 
   const verifyPaymentAndGenerate = async (email: string, paymentId: string) => {
-    // unchanged logic, but adjust pattern formatting
-    if (results) {
-      const pattern = results.pageMarks
-        .map((page) => {
-          const cuts = page.marks.join(', ');
-          return `${page.pageRange.padEnd(10)}${cuts.padEnd(28)}${page.depth.toString().padEnd(6)}mm`;
-        })
-        .join('\n');
-      const patternWithHeader = `PAGE RANGE  CUT POSITIONS (cm)           DEPTH\n${'='.repeat(55)}\n${pattern}`;
-      setResults((prev) => (prev ? { ...prev, pattern: patternWithHeader } : null));
-      setShowPaywall(false);
+    setIsVerifyingPayment(true);
+    
+    try {
+      // Basic validation
+      if (!email || !email.includes('@')) {
+        alert('Please enter a valid email address');
+        setIsVerifyingPayment(false);
+        return;
+      }
+      
+      if (!paymentId || paymentId.length < 10) {
+        alert('Please enter a valid payment confirmation (at least 10 characters)');
+        setIsVerifyingPayment(false);
+        return;
+      }
+      
+      // Simulate verification delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Additional security: Check if payment details look legitimate
+      const emailDomain = email.split('@')[1];
+      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+      const hasValidFormat = paymentId.includes('pi_') || paymentId.includes('ch_') || paymentId.length >= 15;
+      
+      if (!hasValidFormat) {
+        alert('Payment confirmation format appears invalid. Please check your Stripe receipt.');
+        setIsVerifyingPayment(false);
+        return;
+      }
+      
+      if (results) {
+        // Generate cutting instructions after verification
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
+        setResults(prev => prev ? { ...prev, pattern } : null);
+        setShowPaywall(false);
+        
+        // Clear verification data
+        setPaymentVerificationData({ email: '', paymentId: '' });
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      alert('Unable to verify payment. Please try again or contact support.');
+    } finally {
+      setIsVerifyingPayment(false);
     }
   };
 
@@ -263,11 +421,15 @@ function App() {
     verifyPaymentAndGenerate(email, paymentId);
   };
 
+  const handlePaymentCancel = () => {
+    setShowPaywall(false);
+  };
+
   if (showPaywall) {
     return (
-      <Paywall
-        onSuccess={handlePaymentSuccess}
-        onCancel={() => setShowPaywall(false)}
+      <Paywall 
+        onSuccess={handlePaymentSuccess} 
+        onCancel={handlePaymentCancel}
         sessionId={paymentSessionId}
         isVerifying={isVerifyingPayment}
         verificationData={paymentVerificationData}
@@ -278,7 +440,136 @@ function App() {
 
   return (
     <div className="min-h-screen bg-stone-200">
-      {/* UI unchanged */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <LogoIcon />
+            <h1 className="text-3xl font-bold text-stone-800">Book Folding Pattern Generator</h1>
+          </div>
+          <p className="text-stone-600 max-w-2xl mx-auto">
+            Create precise "Measure, Mark, and Cut" patterns from your images. 
+            Perfect for book folding art projects and sculptural designs.
+          </p>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+          {/* Left Column - Input Form */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-md">
+              <h2 className="text-xl font-semibold text-stone-700 mb-4">1. Upload & Configure</h2>
+              
+              <div className="space-y-4">
+                <FileInput
+                  label="Upload Image"
+                  id="imageFile"
+                  file={input.imageFile}
+                  onFileChange={handleFileChange}
+                />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <NumberInput
+                    label="Book Page Height (cm)"
+                    name="bookHeight"
+                    value={input.bookHeight}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 19.5"
+                  />
+                  <NumberInput
+                    label="Total Page Count"
+                    name="totalPages"
+                    value={input.totalPages}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 200"
+                    step="2"
+                  />
+                </div>
+                
+                <NumberInput
+                  label="Top/Bottom Padding (cm)"
+                  name="padding"
+                  value={input.padding}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 1.0"
+                />
+
+                <div>
+                  <label htmlFor="userEmail" className="block text-sm font-medium text-stone-700">
+                    Email Address *
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="email"
+                      id="userEmail"
+                      value={userEmail}
+                      onChange={handleEmailChange}
+                      className="block w-full shadow-sm sm:text-sm border-orange-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-stone-500 mt-1">Required to generate cutting instructions</p>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  onClick={generatePreview}
+                  disabled={isGenerating}
+                  className="w-full bg-amber-800 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? 'Processing...' : 'Generate Preview'}
+                </button>
+
+                {/* Show Generate Instructions button only after preview is generated */}
+                {results && (
+                  <button
+                    onClick={handleGenerateInstructions}
+                    disabled={!isValidEmail(userEmail)}
+                    className="w-full bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Generate Cutting Instructions
+                    {!isValidEmail(userEmail) && (
+                      <span className="text-sm block">Enter valid email first</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Preview */}
+            {results && (
+              <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-lg font-semibold text-stone-700 mb-3">Pattern Preview</h3>
+                <div className="border border-stone-300 rounded-lg overflow-hidden">
+                  <PatternPreview 
+                    pageMarks={results.pageMarks}
+                    bookHeight={results.bookHeight}
+                    totalPages={results.totalPages}
+                    padding={results.padding}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Results */}
+          <div>
+            <ResultsDisplay 
+              results={results} 
+              onGenerateInstructions={handleGenerateInstructions}
+            />
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <InstructionsPanel />
+      </div>
     </div>
   );
 }
