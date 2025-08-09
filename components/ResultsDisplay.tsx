@@ -15,7 +15,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
     const file = new Blob([results.pattern], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
     const baseFilename = results.filename.substring(0, results.filename.lastIndexOf('.')) || results.filename;
-    element.download = `${baseFilename}-depth-pattern.txt`;
+    element.download = `${baseFilename}-cutting-pattern.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -40,7 +40,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-6-6m0 0l-6 6m6-6v12a6 6 0 01-12 0v-3" />
             </svg>
         </div>
-        <h3 className="text-xl font-semibold text-stone-700">Your depth pattern will appear here</h3>
+        <h3 className="text-xl font-semibold text-stone-700">Your cutting pattern will appear here</h3>
         <p className="text-stone-500 mt-1">Fill in the details on the left and click "Generate Preview".</p>
       </div>
     );
@@ -62,9 +62,9 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
   return (
     <div className="bg-orange-50 p-6 rounded-xl shadow-md border border-orange-200 space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-stone-700 mb-2">2. Processed Image & Depth Analysis</h2>
+        <h2 className="text-xl font-semibold text-stone-700 mb-2">2. Processed Image & Cut Depth Analysis</h2>
         <p className="text-sm text-stone-500 mb-3">
-          Grayscale conversion with depth mapping. Dark areas = deep folds, light areas = shallow folds.
+          Grayscale conversion with cut depth mapping. Dark areas = deep cuts, light areas = shallow cuts.
         </p>
         <div className="bg-stone-100 p-2 rounded-lg border">
           <img 
@@ -78,20 +78,20 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
         {/* Depth Statistics */}
         {depthStats && (
           <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2">Depth Analysis</h4>
+            <h4 className="text-sm font-semibold text-blue-800 mb-2">Cut Depth Analysis</h4>
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-blue-600 font-medium">Min Depth:</span>
+                <span className="text-blue-600 font-medium">Min Cut Depth:</span>
                 <br />
                 <span className="text-blue-800 font-semibold">{depthStats.min}mm</span>
               </div>
               <div>
-                <span className="text-blue-600 font-medium">Max Depth:</span>
+                <span className="text-blue-600 font-medium">Max Cut Depth:</span>
                 <br />
                 <span className="text-blue-800 font-semibold">{depthStats.max}mm</span>
               </div>
               <div>
-                <span className="text-blue-600 font-medium">Avg Depth:</span>
+                <span className="text-blue-600 font-medium">Avg Cut Depth:</span>
                 <br />
                 <span className="text-blue-800 font-semibold">{depthStats.avg}mm</span>
               </div>
@@ -106,7 +106,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
             <div className="flex justify-between items-center mb-3">
               <div>
                 <h2 className="text-xl font-semibold text-stone-700">3. Depth-Based Cutting Instructions</h2>
-                <p className="text-sm text-stone-500">Positions in cm, depths in mm. Follow the depth guidelines for best results.</p>
+                <p className="text-sm text-stone-500">Cut positions in cm, cut depth in mm. One consistent depth per page pair.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -138,29 +138,32 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
               <h4 className="text-sm font-semibold text-amber-800 mb-2">Quick Reference</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                 <div>
-                  <span className="text-amber-700 font-medium">Light Folds:</span>
+                  <span className="text-amber-700 font-medium">Light Cuts:</span>
                   <br />
                   <span className="text-amber-800">3-15mm depth</span>
                 </div>
                 <div>
-                  <span className="text-amber-700 font-medium">Medium Folds:</span>
+                  <span className="text-amber-700 font-medium">Medium Cuts:</span>
                   <br />
                   <span className="text-amber-800">16-30mm depth</span>
                 </div>
                 <div>
-                  <span className="text-amber-700 font-medium">Deep Folds:</span>
+                  <span className="text-amber-700 font-medium">Deep Cuts:</span>
                   <br />
                   <span className="text-amber-800">31-40mm depth</span>
                 </div>
+              </div>
+              <div className="mt-2 text-xs text-amber-700">
+                <strong>Remember:</strong> Cut straight into page edge. Each page pair uses ONE consistent depth.
               </div>
             </div>
           </>
         ) : (
            <div className="border-t border-orange-200 pt-6 text-center">
-            <h2 className="text-xl font-semibold text-stone-700 mb-2">3. Generate Depth Instructions</h2>
+            <h2 className="text-xl font-semibold text-stone-700 mb-2">3. Generate Cutting Instructions</h2>
             <p className="text-sm text-stone-500 mb-4">
-              Ready to create your advanced depth-based folding pattern? 
-              This will generate precise instructions with variable fold depths.
+              Ready to create your advanced depth-based cutting pattern? 
+              This will generate precise instructions with variable cut depths.
             </p>
             
             <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
@@ -169,8 +172,9 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
                 <div className="text-left">
                   <h4 className="font-semibold text-green-800 mb-1">Advanced Features Include:</h4>
                   <ul className="text-sm text-green-700 space-y-1">
-                    <li>• Variable depth measurements (3-40mm range)</li>
-                    <li>• Precise fold position coordinates</li>
+                    <li>• Variable cut depth measurements (3-40mm range)</li>
+                    <li>• Precise cut position coordinates</li>
+                    <li>• One consistent depth per page pair</li>
                     <li>• Optimized for realistic shadows and gradients</li>
                     <li>• Compatible with all image types</li>
                   </ul>
