@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PageMark } from '../types';
 
@@ -12,53 +11,21 @@ interface PatternPreviewProps {
 export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookHeight, totalPages }) => {
   const sheets = totalPages / 2;
 
-  // Render at half scale
-  const previewWidth = sheets / 2;
-  const previewHeight = bookHeight / 2;
+  // Render at manageable scale
+  const previewWidth = Math.max(400, sheets);
+  const previewHeight = Math.max(200, bookHeight * 8);
 
-  return (
-    <div className="w-full overflow-x-auto">
-        <svg 
-            width={previewWidth}
-            height={previewHeight}
-            viewBox={`0 0 ${sheets} ${bookHeight}`} 
-            aria-label="Visual preview of folded book pattern"
-            className="bg-white"
-        >
-        {/* Book block background */}
-        <rect x="0" y="0" width={sheets} height={bookHeight} fill="#e5e7eb" /> 
+  // Calculate color intensity based on depth
+  const getDepthColor = (depth: number): string => {
+    // Depth range: 3mm (light) to 40mm (dark)
+    const minDepth = 3;
+    const maxDepth = 40;
+    const normalized = Math.max(0, Math.min(1, (depth - minDepth) / (maxDepth - minDepth)));
+    
+    // Create a color gradient from light gray (shallow) to dark gray (deep)
+    const grayValue = Math.floor(220 - (normalized * 120)); // 220 to 100
+    return `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+  };
 
-        {pageMarks.map((page, index) => {
-            // Chunk marks into pairs [start, end]
-            const markPairs: [number, number][] = [];
-            for (let i = 0; i < page.marks.length; i += 2) {
-                if (page.marks[i+1] !== undefined) {
-                    markPairs.push([page.marks[i], page.marks[i+1]]);
-                }
-            }
-
-            return (
-            <g key={page.pageRange}>
-                {markPairs.map((pair, pairIndex) => {
-                    // For "Projected Fold", fold the first, third, fifth... tab (even indices)
-                    if (pairIndex % 2 === 0) {
-                        return (
-                            <rect
-                                key={`${page.pageRange}-${pairIndex}`}
-                                x={index}
-                                y={pair[0]}
-                                width={1}
-                                height={pair[1] - pair[0]}
-                                fill="#9ca3af" // Darker gray for folded part
-                            />
-                        );
-                    }
-                    return null;
-                })}
-            </g>
-            );
-        })}
-        </svg>
-    </div>
-  );
-};
+  // Get region color based on individual region depth
+  const getRegionColor = (regionDepth: number): string => {
