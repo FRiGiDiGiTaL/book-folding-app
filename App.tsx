@@ -353,8 +353,11 @@ function App() {
 
   const generatePatternText = (pageMarks: PageMark[]): string => {
     const patternLines = pageMarks.map(page => {
+      const depthStr = `${page.depth}mm`.padEnd(8);
+      const pageRangeStr = page.pageRange.padEnd(12);
+      
       if (page.marks.length === 0) {
-        return `${page.pageRange.padEnd(12)} ${'No cuts needed'.padEnd(35)} ${page.depth}mm`;
+        return `${depthStr} ${pageRangeStr} No cuts needed`;
       }
       
       // Group marks into pairs for cut ranges
@@ -367,14 +370,14 @@ function App() {
       }
       
       const rangeText = cutRanges.join(', ');
-      return `${page.pageRange.padEnd(12)} ${rangeText.padEnd(35)} ${page.depth}mm`;
+      return `${depthStr} ${pageRangeStr} ${rangeText}`;
     });
 
-    const header = `PAGE RANGE   CUT POSITIONS (from top of page)        CUT DEPTH\n${'='.repeat(70)}`;
+    const header = `CUT DEPTH PAGE RANGE   CUT POSITIONS (from top of page)\n${'='.repeat(65)}`;
     return `${header}\n${patternLines.join('\n')}\n\n` +
            `Instructions:\n` +
-           `- Numbers show cut start→end positions in cm from top of page\n` +
            `- Cut depth is consistent for each page pair (measured from page edge)\n` +
+           `- Numbers show cut start→end positions in cm from top of page\n` +
            `- Cut straight into the page at the specified depth\n` +
            `- Deeper cuts = darker areas in original image\n` +
            `- Use a sharp craft knife and metal ruler for clean cuts`;
