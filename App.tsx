@@ -5,7 +5,7 @@ import { ResultsDisplay } from './components/ResultsDisplay';
 import { InstructionsPanel } from './components/InstructionsPanel';
 import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
-import { PatternInput, PatternResult } from './types';
+import { PatternInput, PatternResult, PageMark } from './types';
 
 // Inline Paywall component
 interface PaywallProps {
@@ -126,8 +126,8 @@ const Paywall: React.FC<PaywallProps> = ({
 };
 
 function App() {
-  // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
-  const REQUIRE_PAYMENT = true; // Change to false for free promotions
+  // 🎯 PROMOTION TOGGLE: Set to true to require payment
+  const REQUIRE_PAYMENT = false; // Change to true for production
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
@@ -227,12 +227,12 @@ function App() {
     return Math.round(depth * 10) / 10; // Round to 1 decimal place
   };
 
-  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
+  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number): Promise<PageMark[]> => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
     
-    return new Promise<any[]>((resolve, reject) => {
+    return new Promise<PageMark[]>((resolve, reject) => {
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
@@ -246,7 +246,7 @@ function App() {
         
         const sheets = totalPages / 2;
         const usableHeight = bookHeight - (2 * padding);
-        const pageMarks = [];
+        const pageMarks: PageMark[] = [];
         
         for (let sheet = 0; sheet < sheets; sheet++) {
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
@@ -340,6 +340,7 @@ function App() {
         resolve(pageMarks);
       };
       
+      img.onerror = () => reject(new Error('Failed to load image'));
       img.src = processedImageData;
     });
   };
@@ -382,7 +383,7 @@ function App() {
     }
   };
 
-  const generatePatternText = (pageMarks: any[]): string => {
+  const generatePatternText = (pageMarks: PageMark[]): string => {
     const patternLines = pageMarks.map(page => {
       if (page.marks.length === 0) {
         return `${page.pageRange.padEnd(12)} ${'No folds needed'.padEnd(35)} ${page.depth}mm`;
@@ -393,7 +394,7 @@ function App() {
       
       if (page.regions && page.regions.length > 0) {
         // Use detailed region information
-        page.regions.forEach((region: any) => {
+        page.regions.forEach((region) => {
           regions.push(`${region.start}→${region.end}cm(${region.depth}mm)`);
         });
       } else {
@@ -424,9 +425,9 @@ function App() {
       return;
     }
 
-    // Store email for later use
+    // Store email for later use (only attempt if we're in a real environment)
     try {
-      await fetch('/api/collect-email', {
+      const response = await fetch('/api/collect-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -436,18 +437,18 @@ function App() {
           userAgent: navigator.userAgent
         })
       });
-      console.log('Email successfully saved to backend');
+      
+      if (response.ok) {
+        console.log('Email successfully saved to backend');
+      }
     } catch (error) {
-      console.warn('Backend email save failed, logging locally:', {
-        email: userEmail,
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      // Don't block the user flow if email collection fails
+      console.warn('Email collection not available:', error);
     }
     
     // Check if payment is required
     if (!REQUIRE_PAYMENT) {
-      // Free promotion mode - generate instructions immediately
+      // Free mode - generate instructions immediately
       if (results) {
         const pattern = generatePatternText(results.pageMarks);
         setResults(prev => prev ? { ...prev, pattern } : null);
@@ -455,7 +456,7 @@ function App() {
       return;
     }
     
-    // Normal paid mode - show paywall with pre-filled email
+    // Paid mode - show paywall with pre-filled email
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setPaymentSessionId(sessionId);
     setPaymentVerificationData({ email: userEmail, paymentId: '' });
@@ -469,13 +470,11 @@ function App() {
       // Basic validation
       if (!email || !email.includes('@')) {
         alert('Please enter a valid email address');
-        setIsVerifyingPayment(false);
         return;
       }
       
       if (!paymentId || paymentId.length < 10) {
         alert('Please enter a valid payment confirmation (at least 10 characters)');
-        setIsVerifyingPayment(false);
         return;
       }
       
@@ -487,7 +486,6 @@ function App() {
       
       if (!hasValidFormat) {
         alert('Payment confirmation format appears invalid. Please check your Stripe receipt.');
-        setIsVerifyingPayment(false);
         return;
       }
       
