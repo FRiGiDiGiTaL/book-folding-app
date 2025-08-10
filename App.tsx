@@ -295,7 +295,7 @@ function App() {
             marks.push(regionStart, usableHeight + padding);
           }
           
-          // Round all marks to 1 decimal place
+          // Round all marks to 1 decimal place (10th of a mm precision)
           const roundedMarks = marks.map(mark => parseFloat(mark.toFixed(1)));
           
           pageMarks.push({ 
@@ -365,7 +365,7 @@ function App() {
       
       for (let i = 0; i < page.marks.length; i += 2) {
         if (page.marks[i + 1] !== undefined) {
-          cutRanges.push(`${page.marks[i]}→${page.marks[i + 1]}cm`);
+          cutRanges.push(`${page.marks[i]}→${page.marks[i + 1]}`);
         }
       }
       
@@ -373,7 +373,7 @@ function App() {
       return `${depthStr} ${pageRangeStr} ${rangeText}`;
     });
 
-    const header = `CUT DEPTH PAGE RANGE   CUT POSITIONS (from top of page)\n${'='.repeat(65)}`;
+    const header = `CUT DEPTH PAGE RANGE   CUT POSITIONS (cm from top)\n${'='.repeat(65)}`;
     return `${header}\n${patternLines.join('\n')}\n\n` +
            `Instructions:\n` +
            `- Cut depth is consistent for each page pair (measured from page edge)\n` +
