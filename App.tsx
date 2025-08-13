@@ -5,8 +5,7 @@ import { ResultsDisplay } from './components/ResultsDisplay';
 import { InstructionsPanel } from './components/InstructionsPanel';
 import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
-import { PatternInput, PatternResult, PageMark } from './types';
-
+import { PatternInput, PatternResult } from './types';
 // Inline Paywall component
 interface PaywallProps {
   onSuccess?: () => void;
@@ -126,8 +125,8 @@ const Paywall: React.FC<PaywallProps> = ({
 };
 
 function App() {
-  // 🎯 PROMOTION TOGGLE: Set to true to require payment
-  const REQUIRE_PAYMENT = false; // Change to true for production
+  // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
+  const REQUIRE_PAYMENT = false; // Change to false for free promotions
   
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
@@ -136,7 +135,6 @@ function App() {
     padding: '1.0'
   });
 
-  const [useDepthMode, setUseDepthMode] = useState(true); // New state for depth mode toggle
   const [results, setResults] = useState<PatternResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
@@ -160,19 +158,12 @@ function App() {
     setError(null);
   };
 
-  const handleDepthModeChange = (newMode: boolean) => {
-    setUseDepthMode(newMode);
-    setResults(null); // Clear existing results when mode changes
-    setError(null);
-  };
-
   const isValidEmail = (email: string) => {
     return email.includes('@') && email.includes('.') && email.length > 5;
   };
 
   const handleFileChange = useCallback((file: File | null) => {
     setInput(prev => ({ ...prev, imageFile: file }));
-    setResults(null); // Clear existing results when file changes
     setError(null);
   }, []);
 
@@ -184,7 +175,7 @@ function App() {
     return null;
   };
 
-  const processImageForDepthMode = async (imageFile: File, targetWidth: number, targetHeight: number): Promise<string> => {
+  const processImage = async (imageFile: File, targetWidth: number, targetHeight: number): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const canvas = document.createElement('canvas');
@@ -202,49 +193,13 @@ function App() {
         // Draw and resize the image
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
         
-        // Convert to grayscale for depth mode
+        // Convert to grayscale and apply threshold
         const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
         
         for (let i = 0; i < data.length; i += 4) {
           const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-          data[i] = data[i + 1] = data[i + 2] = gray;
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
-        resolve(canvas.toDataURL());
-      };
-
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(imageFile);
-    });
-  };
-
-  const processImageForBWMode = async (imageFile: File, targetWidth: number, targetHeight: number): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        reject(new Error('Could not get canvas context'));
-        return;
-      }
-
-      img.onload = () => {
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        
-        // Draw and resize the image
-        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-        
-        // Convert to black and white (thresholded)
-        const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-        const data = imageData.data;
-        
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-          const bw = gray > 127 ? 255 : 0; // Threshold at middle gray
+          const bw = gray < 128 ? 0 : 255; // Threshold to black/white
           data[i] = data[i + 1] = data[i + 2] = bw;
         }
         
@@ -257,26 +212,12 @@ function App() {
     });
   };
 
-  const calculateDepthFromBrightness = (brightness: number): number => {
-    // Brightness range: 0-255
-    // Cut depth range: 40mm (black) to 3mm (white)
-    const minDepth = 3;  // mm for white/light areas
-    const maxDepth = 40; // mm for black/dark areas
-    
-    // Invert brightness (darker = deeper cuts)
-    const normalizedBrightness = brightness / 255;
-    const curvedBrightness = Math.pow(normalizedBrightness, 1.8);
-    const depth = maxDepth - (curvedBrightness * (maxDepth - minDepth));
-    
-    return Math.round(depth * 10) / 10; // Round to 1 decimal place
-  };
-
-  const generatePageMarksDepthMode = (processedImageData: string, bookHeight: number, totalPages: number, padding: number): Promise<PageMark[]> => {
+  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
     
-    return new Promise<PageMark[]>((resolve, reject) => {
+    return new Promise<any[]>((resolve, reject) => {
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
@@ -290,152 +231,45 @@ function App() {
         
         const sheets = totalPages / 2;
         const usableHeight = bookHeight - (2 * padding);
-        const pageMarks: PageMark[] = [];
+        const pageMarks = [];
         
         for (let sheet = 0; sheet < sheets; sheet++) {
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
+          const marks: number[] = [];
           
           // Sample the column of pixels for this sheet
           const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
           
-          // Collect all brightness values for this column
-          const columnData: Array<{y: number, brightness: number, position: number}> = [];
+          let inBlackRegion = false;
+          let regionStart = 0;
           
           for (let y = 0; y < canvas.height; y++) {
             const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const brightness = imageData.data[pixelIndex]; // Red channel (grayscale)
-            const position = (y / canvas.height) * usableHeight + padding;
+            const isBlack = imageData.data[pixelIndex] < 128; // Black pixel
             
-            columnData.push({ y, brightness, position });
-          }
-          
-          // Calculate average brightness for single cut depth per page
-          const avgBrightness = columnData.reduce((sum, pixel) => sum + pixel.brightness, 0) / columnData.length;
-          const cutDepth = calculateDepthFromBrightness(avgBrightness);
-          
-          // Generate cut marks based on brightness thresholds
-          const marks: number[] = [];
-          const cutThreshold = 180; // Pixels darker than this will be cut
-          
-          let inCutRegion = false;
-          let regionStart = 0;
-          
-          for (let i = 0; i < columnData.length; i++) {
-            const pixel = columnData[i];
-            const shouldCut = pixel.brightness < cutThreshold;
-            
-            if (shouldCut && !inCutRegion) {
-              // Start new cut region
-              regionStart = pixel.position;
-              inCutRegion = true;
-            } else if (!shouldCut && inCutRegion) {
-              // End current cut region
-              marks.push(regionStart, pixel.position);
-              inCutRegion = false;
+            if (isBlack && !inBlackRegion) {
+              // Start of black region
+              inBlackRegion = true;
+              regionStart = (y / canvas.height) * usableHeight + padding;
+            } else if (!isBlack && inBlackRegion) {
+              // End of black region
+              inBlackRegion = false;
+              const regionEnd = (y / canvas.height) * usableHeight + padding;
+              marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
             }
           }
           
-          // Handle region extending to bottom
-          if (inCutRegion) {
-            marks.push(regionStart, usableHeight + padding);
+          // Handle case where black region extends to bottom
+          if (inBlackRegion) {
+            marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
           }
           
-          // Round all marks to 1 decimal place (10th of a mm precision)
-          const roundedMarks = marks.map(mark => parseFloat(mark.toFixed(1)));
-          
-          pageMarks.push({ 
-            pageRange, 
-            marks: roundedMarks, 
-            depth: cutDepth // Single cut depth for the entire page
-          });
+          pageMarks.push({ pageRange, marks });
         }
         
         resolve(pageMarks);
       };
       
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = processedImageData;
-    });
-  };
-
-  const generatePageMarksBWMode = (processedImageData: string, bookHeight: number, totalPages: number, padding: number): Promise<PageMark[]> => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    return new Promise<PageMark[]>((resolve, reject) => {
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx?.drawImage(img, 0, 0);
-        
-        const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
-        if (!imageData) {
-          reject(new Error('Could not get image data'));
-          return;
-        }
-        
-        const sheets = totalPages / 2;
-        const usableHeight = bookHeight - (2 * padding);
-        const pageMarks: PageMark[] = [];
-        const uniformDepth = 20; // Standard 20mm depth for B&W mode
-        
-        for (let sheet = 0; sheet < sheets; sheet++) {
-          const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
-          
-          // Sample the column of pixels for this sheet
-          const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
-          
-          // Collect all pixel data for this column
-          const columnData: Array<{y: number, brightness: number, position: number}> = [];
-          
-          for (let y = 0; y < canvas.height; y++) {
-            const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const brightness = imageData.data[pixelIndex]; // Red channel (B&W)
-            const position = (y / canvas.height) * usableHeight + padding;
-            
-            columnData.push({ y, brightness, position });
-          }
-          
-          // Generate cut marks - cut only where pixels are black (0) in B&W mode
-          const marks: number[] = [];
-          let inCutRegion = false;
-          let regionStart = 0;
-          
-          for (let i = 0; i < columnData.length; i++) {
-            const pixel = columnData[i];
-            const shouldCut = pixel.brightness === 0; // Only pure black pixels
-            
-            if (shouldCut && !inCutRegion) {
-              // Start new cut region
-              regionStart = pixel.position;
-              inCutRegion = true;
-            } else if (!shouldCut && inCutRegion) {
-              // End current cut region
-              marks.push(regionStart, pixel.position);
-              inCutRegion = false;
-            }
-          }
-          
-          // Handle region extending to bottom
-          if (inCutRegion) {
-            marks.push(regionStart, usableHeight + padding);
-          }
-          
-          // Round all marks to 1 decimal place
-          const roundedMarks = marks.map(mark => parseFloat(mark.toFixed(1)));
-          
-          pageMarks.push({ 
-            pageRange, 
-            marks: roundedMarks, 
-            depth: uniformDepth // Uniform depth for B&W mode
-          });
-        }
-        
-        resolve(pageMarks);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
       img.src = processedImageData;
     });
   };
@@ -456,15 +290,11 @@ function App() {
       const padding = parseFloat(input.padding);
       const sheets = totalPages / 2;
 
-      // Process the image based on selected mode
-      const processedImage = useDepthMode 
-        ? await processImageForDepthMode(input.imageFile!, sheets, Math.floor(bookHeight * 10))
-        : await processImageForBWMode(input.imageFile!, sheets, Math.floor(bookHeight * 10));
+      // Process the image
+      const processedImage = await processImage(input.imageFile!, sheets, Math.floor(bookHeight * 10));
       
-      // Generate page marks based on selected mode
-      const pageMarks = useDepthMode
-        ? await generatePageMarksDepthMode(processedImage, bookHeight, totalPages, padding)
-        : await generatePageMarksBWMode(processedImage, bookHeight, totalPages, padding);
+      // Generate page marks
+      const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding);
 
       setResults({
         processedImage,
@@ -473,6 +303,7 @@ function App() {
         bookHeight,
         totalPages,
         padding
+        // Removed pattern generation - only happens after payment
       });
 
     } catch (err) {
@@ -482,49 +313,6 @@ function App() {
     }
   };
 
-  const generatePatternText = (pageMarks: PageMark[]): string => {
-    const patternLines = pageMarks.map(page => {
-      const depthStr = useDepthMode ? `${page.depth}mm`.padEnd(8) : `${page.depth}mm`.padEnd(8);
-      const pageRangeStr = page.pageRange.padEnd(12);
-      
-      if (page.marks.length === 0) {
-        return `${depthStr} ${pageRangeStr} No cuts needed`;
-      }
-      
-      // Group marks into pairs for cut ranges
-      const cutRanges: string[] = [];
-      
-      for (let i = 0; i < page.marks.length; i += 2) {
-        if (page.marks[i + 1] !== undefined) {
-          cutRanges.push(`${page.marks[i]}→${page.marks[i + 1]}`);
-        }
-      }
-      
-      const rangeText = cutRanges.join(', ');
-      return `${depthStr} ${pageRangeStr} ${rangeText}`;
-    });
-
-    const modeText = useDepthMode ? 'Variable Depth' : 'Uniform Depth (20mm)';
-    const header = `CUT DEPTH PAGE RANGE   CUT POSITIONS (cm from top)\n${'='.repeat(65)}\nMode: ${modeText}`;
-    
-    const instructions = useDepthMode
-      ? `Instructions:\n` +
-        `- Cut depth varies based on image brightness (3-40mm range)\n` +
-        `- Cut depth is consistent for each page pair\n` +
-        `- Numbers show cut start→end positions in cm from top of page\n` +
-        `- Cut straight into the page at the specified depth\n` +
-        `- Deeper cuts = darker areas in original image\n` +
-        `- Use a sharp craft knife and metal ruler for clean cuts`
-      : `Instructions:\n` +
-        `- All cuts use uniform 20mm depth\n` +
-        `- Numbers show cut start→end positions in cm from top of page\n` +
-        `- Cut straight into the page at 20mm depth\n` +
-        `- Cut only where black areas appear in processed image\n` +
-        `- Use a sharp craft knife and metal ruler for clean cuts`;
-
-    return `${header}\n${patternLines.join('\n')}\n\n${instructions}`;
-  };
-
   const handleGenerateInstructions = async () => {
     // Validate email first
     if (!isValidEmail(userEmail)) {
@@ -532,9 +320,10 @@ function App() {
       return;
     }
 
-    // Store email for later use (only attempt if we're in a real environment)
+    // Store email for later use
     try {
-      const response = await fetch('/api/collect-email', {
+      // Option: Send to your backend
+      await fetch('/api/collect-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -544,26 +333,32 @@ function App() {
           userAgent: navigator.userAgent
         })
       });
-      
-      if (response.ok) {
-        console.log('Email successfully saved to backend');
-      }
+      console.log('Email successfully saved to backend');
     } catch (error) {
-      // Don't block the user flow if email collection fails
-      console.warn('Email collection not available:', error);
+      // If backend fails, at least log it locally for debugging
+      console.warn('Backend email save failed, logging locally:', {
+        email: userEmail,
+        timestamp: new Date().toISOString(),
+        error: error.message
+      });
+      
+      // Don't block user flow if email saving fails
     }
     
     // Check if payment is required
     if (!REQUIRE_PAYMENT) {
-      // Free mode - generate instructions immediately
+      // Free promotion mode - generate instructions immediately
       if (results) {
-        const pattern = generatePatternText(results.pageMarks);
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
         setResults(prev => prev ? { ...prev, pattern } : null);
       }
       return;
     }
     
-    // Paid mode - show paywall with pre-filled email
+    // Normal paid mode - show paywall with pre-filled email
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setPaymentSessionId(sessionId);
     setPaymentVerificationData({ email: userEmail, paymentId: '' });
@@ -577,11 +372,13 @@ function App() {
       // Basic validation
       if (!email || !email.includes('@')) {
         alert('Please enter a valid email address');
+        setIsVerifyingPayment(false);
         return;
       }
       
       if (!paymentId || paymentId.length < 10) {
         alert('Please enter a valid payment confirmation (at least 10 characters)');
+        setIsVerifyingPayment(false);
         return;
       }
       
@@ -589,16 +386,22 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Additional security: Check if payment details look legitimate
+      const emailDomain = email.split('@')[1];
+      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
       const hasValidFormat = paymentId.includes('pi_') || paymentId.includes('ch_') || paymentId.length >= 15;
       
       if (!hasValidFormat) {
         alert('Payment confirmation format appears invalid. Please check your Stripe receipt.');
+        setIsVerifyingPayment(false);
         return;
       }
       
       if (results) {
         // Generate cutting instructions after verification
-        const pattern = generatePatternText(results.pageMarks);
+        const pattern = results.pageMarks.map(page => 
+          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
+        ).join('\n');
+        
         setResults(prev => prev ? { ...prev, pattern } : null);
         setShowPaywall(false);
         
@@ -642,15 +445,11 @@ function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <LogoIcon />
-            <h1 className="text-3xl font-bold text-stone-800">
-              {useDepthMode ? 'Advanced' : 'Classic'} Book Cutting Pattern Generator
-            </h1>
+            <h1 className="text-3xl font-bold text-stone-800">Book Folding Pattern Generator</h1>
           </div>
           <p className="text-stone-600 max-w-2xl mx-auto">
-            {useDepthMode 
-              ? 'Create sophisticated depth-based "Measure, Mark, and Cut" patterns from your images. Now with variable cut depth support for realistic shadows and gradients.'
-              : 'Create classic black and white "Measure, Mark, and Cut" patterns from your images. Perfect for simple, high-contrast designs with uniform cutting depth.'
-            }
+            Create precise "Measure, Mark, and Cut" patterns from your images. 
+            Perfect for book folding art projects and sculptural designs.
           </p>
         </div>
 
@@ -669,77 +468,30 @@ function App() {
                   onFileChange={handleFileChange}
                 />
                 
-                {/* Processing Mode Selection - More Prominent */}
-                <div className="bg-stone-50 p-4 rounded-lg border border-stone-300">
-                  <h3 className="text-base font-semibold text-stone-700 mb-3">Processing Mode</h3>
-                  
-                  <div className="space-y-3">
-                    {/* Variable Depth Mode Option */}
-                    <div className="flex items-start space-x-3">
-                      <input
-                        id="depthModeOn"
-                        name="processingMode"
-                        type="radio"
-                        checked={useDepthMode}
-                        onChange={() => setUseDepthMode(true)}
-                        className="h-4 w-4 mt-1 text-amber-600 focus:ring-amber-500 border-gray-300"
-                      />
-                      <label htmlFor="depthModeOn" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-medium text-stone-700">
-                          🎨 Variable Depth Mode (Advanced)
-                        </div>
-                        <div className="text-xs text-stone-500 mt-1">
-                          Processes grayscale images with depth variation (3-40mm). Creates realistic shadows and gradients. Best for photos, portraits, and complex images.
-                        </div>
-                      </label>
-                    </div>
-                    
-                    {/* Classic Mode Option */}
-                    <div className="flex items-start space-x-3">
-                      <input
-                        id="depthModeOff"
-                        name="processingMode"
-                        type="radio"
-                        checked={!useDepthMode}
-                        onChange={() => setUseDepthMode(false)}
-                        className="h-4 w-4 mt-1 text-amber-600 focus:ring-amber-500 border-gray-300"
-                      />
-                      <label htmlFor="depthModeOff" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-medium text-stone-700">
-                          🎯 Classic Mode (Uniform Depth)
-                        </div>
-                        <div className="text-xs text-stone-500 mt-1">
-                          Processes as black & white with uniform 20mm depth. Simple and consistent. Best for high-contrast designs, text, and logos.
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Mode-specific information */}
-                <div className={`${useDepthMode ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} p-3 rounded-md border`}>
-                  <p className={`text-sm ${useDepthMode ? 'text-blue-800' : 'text-green-800'}`}>
-                    {useDepthMode ? (
-                      <>
-                        <strong>Advanced Mode:</strong> Variable cut depths create realistic shadows and gradients. 
-                        Dark areas cut deeper (up to 40mm), light areas cut shallow (3mm minimum).
-                      </>
-                    ) : (
-                      <>
-                        <strong>Classic Mode:</strong> Simple black & white processing with uniform 20mm cut depth. 
-                        Only pure black areas will be cut, creating clean, high-contrast results.
-                      </>
-                    )}
-                  </p>
-                </div>
-                
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <NumberInput
                     label="Book Page Height (cm)"
                     name="bookHeight"
                     value={input.bookHeight}
                     onChange={handleInputChange}
-                    placeholder="e.g. 1.0"
+                    placeholder="e.g. 19.5"
+                  />
+                  <NumberInput
+                    label="Total Page Count"
+                    name="totalPages"
+                    value={input.totalPages}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 200"
+                    step="2"
+                  />
+                </div>
+                
+                <NumberInput
+                  label="Top/Bottom Padding (cm)"
+                  name="padding"
+                  value={input.padding}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 1.0"
                 />
 
                 <div>
@@ -781,10 +533,7 @@ function App() {
                     disabled={!isValidEmail(userEmail)}
                     className="w-full bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {useDepthMode 
-                      ? 'Generate Depth-Based Instructions'
-                      : 'Generate Classic Instructions'
-                    }
+                    Generate Cutting Instructions
                     {!isValidEmail(userEmail) && (
                       <span className="text-sm block">Enter valid email first</span>
                     )}
@@ -793,7 +542,20 @@ function App() {
               </div>
             </div>
 
-
+            {/* Preview */}
+            {results && (
+              <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-lg font-semibold text-stone-700 mb-3">Pattern Preview</h3>
+                <div className="border border-stone-300 rounded-lg overflow-hidden">
+                  <PatternPreview 
+                    pageMarks={results.pageMarks}
+                    bookHeight={results.bookHeight}
+                    totalPages={results.totalPages}
+                    padding={results.padding}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Results */}
@@ -801,33 +563,15 @@ function App() {
             <ResultsDisplay 
               results={results} 
               onGenerateInstructions={handleGenerateInstructions}
-              useDepthMode={useDepthMode}
             />
           </div>
         </div>
 
         {/* Instructions */}
-        <InstructionsPanel useDepthMode={useDepthMode} />
+        <InstructionsPanel />
       </div>
     </div>
   );
 }
 
-export default App;g. 19.5"
-                  />
-                  <NumberInput
-                    label="Total Page Count"
-                    name="totalPages"
-                    value={input.totalPages}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 200"
-                    step="2"
-                  />
-                </div>
-                
-                <NumberInput
-                  label="Top/Bottom Padding (cm)"
-                  name="padding"
-                  value={input.padding}
-                  onChange={handleInputChange}
-                  placeholder="e.
+export default App;
