@@ -5,9 +5,10 @@ import { DownloadIcon, ClipboardIcon, GenerateIcon } from './Icons';
 interface ResultsDisplayProps {
   results: PatternResult | null;
   onGenerateInstructions: () => void;
+  useDepthMode: boolean;
 }
 
-export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGenerateInstructions }) => {
+export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGenerateInstructions, useDepthMode }) => {
 
   const downloadTxtFile = useCallback(() => {
     if (!results || !results.pattern) return;
@@ -15,11 +16,12 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
     const file = new Blob([results.pattern], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
     const baseFilename = results.filename.substring(0, results.filename.lastIndexOf('.')) || results.filename;
-    element.download = `${baseFilename}-cutting-pattern.txt`;
+    const modePrefix = useDepthMode ? 'depth-based' : 'classic';
+    element.download = `${baseFilename}-${modePrefix}-cutting-pattern.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-  }, [results]);
+  }, [results, useDepthMode]);
 
   const copyToClipboard = useCallback(() => {
     if (!results || !results.pattern) return;
@@ -62,21 +64,26 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
   return (
     <div className="bg-orange-50 p-6 rounded-xl shadow-md border border-orange-200 space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-stone-700 mb-2">2. Processed Image & Cut Depth Analysis</h2>
+        <h2 className="text-xl font-semibold text-stone-700 mb-2">
+          2. Processed Image {useDepthMode ? '& Cut Depth Analysis' : '(Black & White)'}
+        </h2>
         <p className="text-sm text-stone-500 mb-3">
-          Grayscale conversion with cut depth mapping. Dark areas = deep cuts, light areas = shallow cuts.
+          {useDepthMode 
+            ? 'Grayscale conversion with cut depth mapping. Dark areas = deep cuts, light areas = shallow cuts.'
+            : 'Black & white conversion with threshold. Only black areas will be cut at uniform 20mm depth.'
+          }
         </p>
         <div className="bg-stone-100 p-2 rounded-lg border">
           <img 
             src={results.processedImage} 
-            alt="Processed grayscale pattern" 
+            alt={useDepthMode ? "Processed grayscale pattern" : "Processed black and white pattern"}
             className="w-full h-auto object-contain rounded max-h-48" 
             style={{ imageRendering: 'pixelated' }} 
           />
         </div>
         
-        {/* Depth Statistics */}
-        {depthStats && (
+        {/* Depth Statistics - only show in depth mode */}
+        {useDepthMode && depthStats && (
           <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="text-sm font-semibold text-blue-800 mb-2">Cut Depth Analysis</h4>
             <div className="grid grid-cols-3 gap-4 text-sm">
@@ -98,6 +105,18 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
             </div>
           </div>
         )}
+
+        {/* Classic mode info */}
+        {!useDepthMode && (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+            <h4 className="text-sm font-semibold text-green-800 mb-2">Classic Mode Settings</h4>
+            <div className="text-sm text-green-700">
+              <p><strong>Cut Depth:</strong> Uniform 20mm for all cuts</p>
+              <p><strong>Cut Areas:</strong> Only pure black regions in processed image</p>
+              <p><strong>Threshold:</strong> Pixels above 50% brightness become white (no cut)</p>
+            </div>
+          </div>
+        )}
       </div>
       
       <div>
@@ -105,8 +124,15 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
            <>
             <div className="flex justify-between items-center mb-3">
               <div>
-                <h2 className="text-xl font-semibold text-stone-700">3. Depth-Based Cutting Instructions</h2>
-                <p className="text-sm text-stone-500">Cut positions in cm, cut depth in mm. One consistent depth per page pair.</p>
+                <h2 className="text-xl font-semibold text-stone-700">
+                  3. {useDepthMode ? 'Depth-Based' : 'Classic'} Cutting Instructions
+                </h2>
+                <p className="text-sm text-stone-500">
+                  {useDepthMode 
+                    ? 'Cut positions in cm, cut depth in mm. One consistent depth per page pair.'
+                    : 'Cut positions in cm, uniform 20mm depth for all cuts.'
+                  }
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -130,53 +156,89 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
               readOnly
               value={results.pattern}
               className="w-full h-96 bg-stone-100 border border-orange-300 rounded-md font-mono text-sm p-4 focus:ring-amber-500 focus:border-amber-500"
-              aria-label="Generated depth-based cutting instructions"
+              aria-label={`Generated ${useDepthMode ? 'depth-based' : 'classic'} cutting instructions`}
             />
             
             {/* Quick reference guide */}
-            <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-              <h4 className="text-sm font-semibold text-amber-800 mb-2">Quick Reference</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <div>
-                  <span className="text-amber-700 font-medium">Light Cuts:</span>
-                  <br />
-                  <span className="text-amber-800">3-15mm depth</span>
-                </div>
-                <div>
-                  <span className="text-amber-700 font-medium">Medium Cuts:</span>
-                  <br />
-                  <span className="text-amber-800">16-30mm depth</span>
-                </div>
-                <div>
-                  <span className="text-amber-700 font-medium">Deep Cuts:</span>
-                  <br />
-                  <span className="text-amber-800">31-40mm depth</span>
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-amber-700">
-                <strong>Remember:</strong> Cut straight into page edge. Each page pair uses ONE consistent depth.
-              </div>
+            <div className={`mt-4 p-3 rounded-lg border ${useDepthMode ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+              <h4 className={`text-sm font-semibold mb-2 ${useDepthMode ? 'text-amber-800' : 'text-green-800'}`}>
+                Quick Reference
+              </h4>
+              
+              {useDepthMode ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <span className="text-amber-700 font-medium">Light Cuts:</span>
+                      <br />
+                      <span className="text-amber-800">3-15mm depth</span>
+                    </div>
+                    <div>
+                      <span className="text-amber-700 font-medium">Medium Cuts:</span>
+                      <br />
+                      <span className="text-amber-800">16-30mm depth</span>
+                    </div>
+                    <div>
+                      <span className="text-amber-700 font-medium">Deep Cuts:</span>
+                      <br />
+                      <span className="text-amber-800">31-40mm depth</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-amber-700">
+                    <strong>Remember:</strong> Cut straight into page edge. Each page pair uses ONE consistent depth.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm text-green-700">
+                    <p><strong>Cut Depth:</strong> Always 20mm into page edge</p>
+                    <p><strong>Cut Method:</strong> Straight cuts at marked positions</p>
+                    <p><strong>Cut Areas:</strong> Only where black regions appear</p>
+                  </div>
+                  <div className="mt-2 text-xs text-green-700">
+                    <strong>Remember:</strong> Simple and consistent - all cuts are 20mm deep.
+                  </div>
+                </>
+              )}
             </div>
           </>
         ) : (
            <div className="border-t border-orange-200 pt-6 text-center">
             <h2 className="text-xl font-semibold text-stone-700 mb-2">3. Generate Cutting Instructions</h2>
             <p className="text-sm text-stone-500 mb-4">
-              Ready to create your advanced depth-based cutting pattern? 
-              This will generate precise instructions with variable cut depths.
+              {useDepthMode 
+                ? 'Ready to create your advanced depth-based cutting pattern? This will generate precise instructions with variable cut depths.'
+                : 'Ready to create your classic cutting pattern? This will generate simple instructions with uniform 20mm cut depth.'
+              }
             </p>
             
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
+            <div className={`${useDepthMode ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'} p-4 rounded-lg border mb-4`}>
               <div className="flex items-start gap-3">
-                <div className="text-green-600 text-2xl">✨</div>
+                <div className={`${useDepthMode ? 'text-green-600' : 'text-blue-600'} text-2xl`}>
+                  {useDepthMode ? '✨' : '🎯'}
+                </div>
                 <div className="text-left">
-                  <h4 className="font-semibold text-green-800 mb-1">Advanced Features Include:</h4>
-                  <ul className="text-sm text-green-700 space-y-1">
-                    <li>• Variable cut depth measurements (3-40mm range)</li>
-                    <li>• Precise cut position coordinates</li>
-                    <li>• One consistent depth per page pair</li>
-                    <li>• Optimized for realistic shadows and gradients</li>
-                    <li>• Compatible with all image types</li>
+                  <h4 className={`font-semibold mb-1 ${useDepthMode ? 'text-green-800' : 'text-blue-800'}`}>
+                    {useDepthMode ? 'Advanced Features Include:' : 'Classic Features Include:'}
+                  </h4>
+                  <ul className={`text-sm space-y-1 ${useDepthMode ? 'text-green-700' : 'text-blue-700'}`}>
+                    {useDepthMode ? (
+                      <>
+                        <li>• Variable cut depth measurements (3-40mm range)</li>
+                        <li>• Precise cut position coordinates</li>
+                        <li>• One consistent depth per page pair</li>
+                        <li>• Optimized for realistic shadows and gradients</li>
+                        <li>• Compatible with all image types</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>• Simple uniform 20mm cut depth</li>
+                        <li>• Clear black & white processing</li>
+                        <li>• Easy-to-follow instructions</li>
+                        <li>• Perfect for high-contrast designs</li>
+                        <li>• Consistent results every time</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -187,7 +249,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
                 className="w-full sm:w-auto flex items-center justify-center gap-2 mx-auto bg-amber-800 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-600 transition-all duration-200"
             >
                 <GenerateIcon />
-                Generate Advanced Instructions
+                {useDepthMode ? 'Generate Advanced Instructions' : 'Generate Classic Instructions'}
             </button>
            </div>
         )}
