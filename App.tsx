@@ -160,8 +160,8 @@ function App() {
     setError(null);
   };
 
-  const handleDepthModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUseDepthMode(e.target.checked);
+  const handleDepthModeChange = (newMode: boolean) => {
+    setUseDepthMode(newMode);
     setResults(null); // Clear existing results when mode changes
     setError(null);
   };
@@ -669,27 +669,50 @@ function App() {
                   onFileChange={handleFileChange}
                 />
                 
-                {/* Depth Mode Toggle */}
-                <div className="border-t border-stone-200 pt-4">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      id="depthMode"
-                      type="checkbox"
-                      checked={useDepthMode}
-                      onChange={handleDepthModeChange}
-                      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="depthMode" className="flex-1">
-                      <div className="text-sm font-medium text-stone-700">
-                        Enable Variable Depth Mode
-                      </div>
-                      <div className="text-xs text-stone-500">
-                        {useDepthMode 
-                          ? 'Processes grayscale images with depth variation (3-40mm). Best for photos and complex images.'
-                          : 'Processes as black & white with uniform 20mm depth. Best for simple, high-contrast designs.'
-                        }
-                      </div>
-                    </label>
+                {/* Processing Mode Selection - More Prominent */}
+                <div className="bg-stone-50 p-4 rounded-lg border border-stone-300">
+                  <h3 className="text-base font-semibold text-stone-700 mb-3">Processing Mode</h3>
+                  
+                  <div className="space-y-3">
+                    {/* Variable Depth Mode Option */}
+                    <div className="flex items-start space-x-3">
+                      <input
+                        id="depthModeOn"
+                        name="processingMode"
+                        type="radio"
+                        checked={useDepthMode}
+                        onChange={() => setUseDepthMode(true)}
+                        className="h-4 w-4 mt-1 text-amber-600 focus:ring-amber-500 border-gray-300"
+                      />
+                      <label htmlFor="depthModeOn" className="flex-1 cursor-pointer">
+                        <div className="text-sm font-medium text-stone-700">
+                          🎨 Variable Depth Mode (Advanced)
+                        </div>
+                        <div className="text-xs text-stone-500 mt-1">
+                          Processes grayscale images with depth variation (3-40mm). Creates realistic shadows and gradients. Best for photos, portraits, and complex images.
+                        </div>
+                      </label>
+                    </div>
+                    
+                    {/* Classic Mode Option */}
+                    <div className="flex items-start space-x-3">
+                      <input
+                        id="depthModeOff"
+                        name="processingMode"
+                        type="radio"
+                        checked={!useDepthMode}
+                        onChange={() => setUseDepthMode(false)}
+                        className="h-4 w-4 mt-1 text-amber-600 focus:ring-amber-500 border-gray-300"
+                      />
+                      <label htmlFor="depthModeOff" className="flex-1 cursor-pointer">
+                        <div className="text-sm font-medium text-stone-700">
+                          🎯 Classic Mode (Uniform Depth)
+                        </div>
+                        <div className="text-xs text-stone-500 mt-1">
+                          Processes as black & white with uniform 20mm depth. Simple and consistent. Best for high-contrast designs, text, and logos.
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
                 
