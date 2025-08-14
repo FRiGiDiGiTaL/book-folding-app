@@ -12,9 +12,9 @@ interface PatternPreviewProps {
 export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookHeight, totalPages, useDepthMode }) => {
   const sheets = totalPages / 2;
 
-  // Render at manageable scale - now correctly oriented vertically like a book
-  const previewWidth = Math.max(300, sheets * 8); // Width represents the number of sheets
-  const previewHeight = Math.max(400, bookHeight * 20); // Height represents book page height
+  // Render with correct orientation - width represents book thickness (sheets), height represents the image height
+  const previewWidth = Math.max(400, sheets * 2); // Width = book thickness (number of sheets)
+  const previewHeight = Math.max(300, bookHeight * 15); // Height = vertical dimension of the image/book
 
   // Calculate color intensity based on cut depth or mode
   const getDepthColor = (depth: number): string => {
@@ -44,10 +44,10 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
           aria-label={`Visual preview of ${useDepthMode ? 'depth-based' : 'classic'} book cutting pattern`}
           className="bg-stone-50 border border-stone-200 rounded"
         >
-          {/* Book block background */}
+          {/* Book spine background - this represents the side view of the book */}
           <rect x="0" y="0" width={sheets} height={bookHeight} fill="#f5f5f4" stroke="#d6d3d1" strokeWidth="0.02" />
           
-          {/* Horizontal grid lines for height reference */}
+          {/* Horizontal grid lines for height reference (these are correct - they show the vertical positions) */}
           {Array.from({ length: Math.floor(bookHeight / 2) + 1 }, (_, i) => i * 2).map(y => (
             <line
               key={`grid-h-${y}`}
@@ -61,7 +61,7 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
             />
           ))}
           
-          {/* Vertical grid lines for sheet reference */}
+          {/* Vertical grid lines for sheet reference (these show the book thickness) */}
           {Array.from({ length: Math.floor(sheets / 10) + 1 }, (_, i) => i * 10).map(x => (
             <line
               key={`grid-v-${x}`}
@@ -90,7 +90,7 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
                   opacity={useDepthMode ? "0.4" : "0.2"}
                 />
                 
-                {/* Cut regions - visualization depends on mode */}
+                {/* Cut regions - these represent the actual cuts into the page edge */}
                 {page.marks.length > 0 && (() => {
                   const cutRegions = [];
                   for (let i = 0; i < page.marks.length; i += 2) {
@@ -111,7 +111,7 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
                   return cutRegions;
                 })()}
                 
-                {/* Page range label (show every 20th page for readability in vertical layout) */}
+                {/* Page range label (show every 20th page for readability) */}
                 {index % 20 === 0 && (
                   <text
                     x={index + 0.5}
@@ -160,26 +160,51 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
               </>
             )}
           </g>
+          
+          {/* Orientation labels to make it clear */}
+          <g>
+            {/* Top label */}
+            <text x={sheets/2} y="0.5" fontSize={Math.max(0.4, bookHeight * 0.025)} textAnchor="middle" fill="#78716c" className="font-semibold">
+              Top of Pages
+            </text>
+            
+            {/* Bottom label */}
+            <text x={sheets/2} y={bookHeight - 0.2} fontSize={Math.max(0.4, bookHeight * 0.025)} textAnchor="middle" fill="#78716c" className="font-semibold">
+              Bottom of Pages
+            </text>
+            
+            {/* Left side label (rotated) */}
+            <text x="0.2" y={bookHeight/2} fontSize={Math.max(0.3, bookHeight * 0.02)} textAnchor="middle" fill="#78716c" transform={`rotate(-90, 0.2, ${bookHeight/2})`}>
+              Book Spine (Page 1)
+            </text>
+            
+            {/* Right side label (rotated) */}
+            <text x={sheets - 0.2} y={bookHeight/2} fontSize={Math.max(0.3, bookHeight * 0.02)} textAnchor="middle" fill="#78716c" transform={`rotate(-90, ${sheets - 0.2}, ${bookHeight/2})`}>
+              Back Cover (Last Pages)
+            </text>
+          </g>
         </svg>
       </div>
       
       <div className="mt-4 text-sm text-stone-600 space-y-1">
-        <p><strong>Preview Guide:</strong></p>
-        <p>• Each column represents 2 pages (1 sheet to cut)</p>
+        <p><strong>Preview Guide (Side View of Book):</strong></p>
+        <p>• <strong>Horizontal axis:</strong> Book thickness - each column = 2 pages (1 sheet to cut)</p>
+        <p>• <strong>Vertical axis:</strong> Page height - shows where cuts will be made from top to bottom</p>
         {useDepthMode ? (
           <>
-            <p>• Darker regions = deeper cuts (up to 40mm into page edge)</p>
-            <p>• Lighter regions = shallow cuts (minimum 3mm into page edge)</p>
-            <p>• Each page pair has ONE consistent cut depth</p>
+            <p>• <strong>Darker regions:</strong> Deeper cuts (up to 40.0mm into page edge)</p>
+            <p>• <strong>Lighter regions:</strong> Shallow cuts (minimum 3.0mm into page edge)</p>
+            <p>• Each page pair has ONE consistent cut depth throughout</p>
           </>
         ) : (
           <>
-            <p>• Dark regions = cut areas (20mm into page edge)</p>
-            <p>• Light regions = no cut areas</p>
-            <p>• All cuts use uniform 20mm depth</p>
+            <p>• <strong>Dark regions:</strong> Cut areas (20.0mm into page edge)</p>
+            <p>• <strong>Light regions:</strong> No cut areas</p>
+            <p>• All cuts use uniform 20.0mm depth</p>
           </>
         )}
-        <p>• Cut straight into the page edge at marked positions</p>
+        <p>• <strong>This is a side view:</strong> You're looking at the book from the side, seeing the pattern that will emerge</p>
+        <p>• <strong>Cut direction:</strong> Cut straight into the page edge at the marked vertical positions</p>
       </div>
     </div>
   );
