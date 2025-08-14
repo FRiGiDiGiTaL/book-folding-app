@@ -597,20 +597,6 @@ function App() {
                 >
                   {isGenerating ? 'Processing...' : 'Generate Preview'}
                 </button>
-
-                {/* Show Generate Instructions button only after preview is generated */}
-                {results && (
-                  <button
-                    onClick={handleGenerateInstructions}
-                    disabled={!isValidEmail(userEmail)}
-                    className="w-full bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Generate Cutting Instructions
-                    {!isValidEmail(userEmail) && (
-                      <span className="text-sm block">Enter valid email first</span>
-                    )}
-                  </button>
-                )}
               </div>
             </div>
 
