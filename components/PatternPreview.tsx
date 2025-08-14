@@ -12,9 +12,9 @@ interface PatternPreviewProps {
 export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookHeight, totalPages, useDepthMode }) => {
   const sheets = totalPages / 2;
 
-  // Render with correct orientation - width represents book thickness (sheets), height represents the image height
-  const previewWidth = Math.max(400, sheets * 2); // Width = book thickness (number of sheets)
-  const previewHeight = Math.max(300, bookHeight * 15); // Height = vertical dimension of the image/book
+  // Use fixed pixel dimensions that will fill the container
+  const previewWidth = 600; // Fixed width for consistent display
+  const previewHeight = 400; // Fixed height for consistent display
 
   // Calculate color intensity based on cut depth or mode
   const getDepthColor = (depth: number): string => {
@@ -35,14 +35,15 @@ export const PatternPreview: React.FC<PatternPreviewProps> = ({ pageMarks, bookH
   };
 
   return (
-    <div className="w-full overflow-x-auto bg-white p-4">
-      <div className="min-w-max">
+    <div className="w-full bg-white p-4">
+      <div className="w-full h-96"> {/* Fixed height container */}
         <svg 
-          width={previewWidth}
-          height={previewHeight}
+          width="100%"
+          height="100%"
           viewBox={`0 0 ${sheets} ${bookHeight}`} 
+          preserveAspectRatio="none"
           aria-label={`Visual preview of ${useDepthMode ? 'depth-based' : 'classic'} book cutting pattern`}
-          className="bg-stone-50 border border-stone-200 rounded"
+          className="bg-stone-50 border border-stone-200 rounded w-full h-full"
         >
           {/* Book spine background - this represents the side view of the book */}
           <rect x="0" y="0" width={sheets} height={bookHeight} fill="#f5f5f4" stroke="#d6d3d1" strokeWidth="0.02" />
