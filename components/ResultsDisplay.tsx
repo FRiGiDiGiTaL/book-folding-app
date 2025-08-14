@@ -90,12 +90,12 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
               <div>
                 <span className="text-blue-600 font-medium">Min Cut Depth:</span>
                 <br />
-                <span className="text-blue-800 font-semibold">{depthStats.min}mm</span>
+                <span className="text-blue-800 font-semibold">{depthStats.min.toFixed(1)}mm</span>
               </div>
               <div>
                 <span className="text-blue-600 font-medium">Max Cut Depth:</span>
                 <br />
-                <span className="text-blue-800 font-semibold">{depthStats.max}mm</span>
+                <span className="text-blue-800 font-semibold">{depthStats.max.toFixed(1)}mm</span>
               </div>
               <div>
                 <span className="text-blue-600 font-medium">Avg Cut Depth:</span>
@@ -111,7 +111,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
           <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
             <h4 className="text-sm font-semibold text-green-800 mb-2">Classic Mode Settings</h4>
             <div className="text-sm text-green-700">
-              <p><strong>Cut Depth:</strong> Uniform 20mm for all cuts</p>
+              <p><strong>Cut Depth:</strong> Uniform 20.0mm for all cuts</p>
               <p><strong>Cut Areas:</strong> Only pure black regions in processed image</p>
               <p><strong>Threshold:</strong> Pixels above 50% brightness become white (no cut)</p>
             </div>
@@ -129,8 +129,8 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
                 </h2>
                 <p className="text-sm text-stone-500">
                   {useDepthMode 
-                    ? 'Cut positions in cm, cut depth in mm. One consistent depth per page pair.'
-                    : 'Cut positions in cm, uniform 20mm depth for all cuts.'
+                    ? 'Cut positions as individual points in cm. Cut depth in mm (one per page pair).'
+                    : 'Cut positions as individual points in cm. Uniform 20.0mm depth for all cuts.'
                   }
                 </p>
               </div>
@@ -171,32 +171,32 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
                     <div>
                       <span className="text-amber-700 font-medium">Light Cuts:</span>
                       <br />
-                      <span className="text-amber-800">3-15mm depth</span>
+                      <span className="text-amber-800">3.0-15.0mm depth</span>
                     </div>
                     <div>
                       <span className="text-amber-700 font-medium">Medium Cuts:</span>
                       <br />
-                      <span className="text-amber-800">16-30mm depth</span>
+                      <span className="text-amber-800">16.0-30.0mm depth</span>
                     </div>
                     <div>
                       <span className="text-amber-700 font-medium">Deep Cuts:</span>
                       <br />
-                      <span className="text-amber-800">31-40mm depth</span>
+                      <span className="text-amber-800">31.0-40.0mm depth</span>
                     </div>
                   </div>
                   <div className="mt-2 text-xs text-amber-700">
-                    <strong>Remember:</strong> Cut straight into page edge. Each page pair uses ONE consistent depth.
+                    <strong>Remember:</strong> Cut straight into page edge. Each page pair uses ONE consistent depth. Cut between pairs of positions.
                   </div>
                 </>
               ) : (
                 <>
                   <div className="text-sm text-green-700">
-                    <p><strong>Cut Depth:</strong> Always 20mm into page edge</p>
-                    <p><strong>Cut Method:</strong> Straight cuts at marked positions</p>
+                    <p><strong>Cut Depth:</strong> Always 20.0mm into page edge</p>
+                    <p><strong>Cut Method:</strong> Cut between pairs of positions (e.g., 5.7 to 6.1, then 8.3 to 9.5)</p>
                     <p><strong>Cut Areas:</strong> Only where black regions appear</p>
                   </div>
                   <div className="mt-2 text-xs text-green-700">
-                    <strong>Remember:</strong> Simple and consistent - all cuts are 20mm deep.
+                    <strong>Remember:</strong> Simple and consistent - all cuts are 20.0mm deep.
                   </div>
                 </>
               )}
@@ -208,7 +208,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
             <p className="text-sm text-stone-500 mb-4">
               {useDepthMode 
                 ? 'Ready to create your advanced depth-based cutting pattern? This will generate precise instructions with variable cut depths.'
-                : 'Ready to create your classic cutting pattern? This will generate simple instructions with uniform 20mm cut depth.'
+                : 'Ready to create your classic cutting pattern? This will generate simple instructions with uniform 20.0mm cut depth.'
               }
             </p>
             
@@ -224,17 +224,17 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, onGener
                   <ul className={`text-sm space-y-1 ${useDepthMode ? 'text-green-700' : 'text-blue-700'}`}>
                     {useDepthMode ? (
                       <>
-                        <li>• Variable cut depth measurements (3-40mm range)</li>
-                        <li>• Precise cut position coordinates</li>
+                        <li>• Variable cut depth measurements (3.0-40.0mm range)</li>
+                        <li>• Precise cut position coordinates as individual points</li>
                         <li>• One consistent depth per page pair</li>
                         <li>• Optimized for realistic shadows and gradients</li>
                         <li>• Compatible with all image types</li>
                       </>
                     ) : (
                       <>
-                        <li>• Simple uniform 20mm cut depth</li>
+                        <li>• Simple uniform 20.0mm cut depth</li>
                         <li>• Clear black & white processing</li>
-                        <li>• Easy-to-follow instructions</li>
+                        <li>• Easy-to-follow instructions with individual cut points</li>
                         <li>• Perfect for high-contrast designs</li>
                         <li>• Consistent results every time</li>
                       </>
