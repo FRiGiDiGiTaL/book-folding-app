@@ -11,25 +11,23 @@ const Step: React.FC<{ icon: string; title: string; children: React.ReactNode }>
       <h3 className="text-lg font-semibold text-stone-800">{title}</h3>
       <div className="text-stone-600 space-y-2 mt-1">{children}</div>
     </div>
-  );
-};>
   </div>
 );
 
 export const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ useDepthMode }) => {
-  const depthExamplePattern = `PAGE RANGE   CUT POSITIONS (from top of page)        CUT DEPTH
-======================================================================
+  const depthExamplePattern = `CUT DEPTH   PAGE RANGE   CUT POSITIONS (from top of page)
+=======================================================================
 Mode: Variable Depth
-1-2          5.7→6.1cm, 8.3→9.5cm                     31.5mm
-3-4          4.2→7.8cm                                28.9mm
-5-6          No cuts needed                           8.2mm`;
+31.5mm      1-2          5.7, 6.1, 8.3, 9.5
+28.9mm      3-4          4.2, 7.8
+8.2mm       5-6          No cuts needed`;
 
-  const classicExamplePattern = `PAGE RANGE   CUT POSITIONS (from top of page)        CUT DEPTH
-======================================================================
+  const classicExamplePattern = `PAGE RANGE   CUT POSITIONS (from top of page)
+================================================
 Mode: Uniform Depth (20mm)
-1-2          5.7→6.1cm, 8.3→9.5cm                     20mm
-3-4          4.2→7.8cm                                20mm
-5-6          No cuts needed                           20mm`;
+1-2          5.7, 6.1, 8.3, 9.5
+3-4          4.2, 7.8
+5-6          No cuts needed`;
 
   return (
     <div className="bg-orange-50 p-6 sm:p-8 rounded-xl shadow-md border border-orange-200">
@@ -124,12 +122,12 @@ Mode: Uniform Depth (20mm)
             {useDepthMode ? depthExamplePattern : classicExamplePattern}
           </pre>
           <ul className="list-disc list-inside space-y-1 text-sm mt-2">
-            <li><strong>Cut Positions:</strong> Start→End measurements in cm from page top</li>
+            <li><strong>Cut Positions:</strong> Individual measurements in cm from page top (start and end positions)</li>
             <li><strong>Cut Depth:</strong> {useDepthMode 
-              ? 'How deep to cut into the page edge (varies per page pair)'
+              ? 'How deep to cut into the page edge (varies per page pair from 3.0mm to 40.0mm)'
               : 'Always 20mm deep into the page edge (uniform for all cuts)'
             }</li>
-            {useDepthMode && <li><strong>Variable Depth:</strong> Each page pair has ONE cut depth throughout</li>}
+            {useDepthMode && <li><strong>Variable Depth:</strong> Each page pair has ONE cut depth throughout - all cuts on that pair use the same depth</li>}
           </ul>
         </Step>
 
@@ -137,8 +135,8 @@ Mode: Uniform Depth (20mm)
           <div className="space-y-3">
             <div>
               <h4 className="font-semibold text-stone-700">📏 Measuring & Marking</h4>
-              <p>Use the position measurements to mark cut lines on the page edges. 
-                 Mark lightly with pencil where you'll make your cuts.</p>
+              <p>Use the position measurements to mark cut lines on the page edges. Each number represents where to start or stop a cut.
+                 Mark lightly with pencil at each position listed.</p>
             </div>
             <div>
               <h4 className="font-semibold text-stone-700">🔪 Making the Cuts</h4>
@@ -146,9 +144,9 @@ Mode: Uniform Depth (20mm)
                 <>
                   <p>Cut straight into the page edge at the specified depth for each page pair:</p>
                   <ul className="list-disc list-inside ml-4 text-sm space-y-1">
-                    <li><strong>Light cuts (3-15mm):</strong> Shallow cuts into page edge</li>
-                    <li><strong>Medium cuts (16-30mm):</strong> Standard depth cuts</li>
-                    <li><strong>Deep cuts (31-40mm):</strong> Maximum depth for dark image areas</li>
+                    <li><strong>Light cuts (3.0-15.0mm):</strong> Shallow cuts into page edge</li>
+                    <li><strong>Medium cuts (16.0-30.0mm):</strong> Standard depth cuts</li>
+                    <li><strong>Deep cuts (31.0-40.0mm):</strong> Maximum depth for dark image areas</li>
                   </ul>
                 </>
               ) : (
@@ -166,8 +164,9 @@ Mode: Uniform Depth (20mm)
               <h4 className="font-semibold text-stone-700">🎯 Cut Direction & Technique</h4>
               <ul className="list-disc list-inside ml-4 text-sm space-y-1">
                 <li><strong>Cut from page edge:</strong> Cut straight into the page from the outer edge</li>
+                <li><strong>Pairs of positions:</strong> Cut between each pair of numbers (e.g., 5.7 to 6.1, then 8.3 to 9.5)</li>
                 <li><strong>Consistent depth:</strong> {useDepthMode 
-                  ? 'All cuts on a page pair use the SAME depth'
+                  ? 'All cuts on a page pair use the SAME depth (shown at start of line)'
                   : 'All cuts use 20mm depth'
                 }</li>
                 <li><strong>Clean cuts:</strong> Use sharp craft knife and metal ruler</li>
@@ -212,4 +211,6 @@ Mode: Uniform Depth (20mm)
           </ul>
         </div>
       </div>
-    </div
+    </div>
+  );
+};
