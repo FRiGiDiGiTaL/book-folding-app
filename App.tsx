@@ -6,6 +6,7 @@ import { InstructionsPanel } from './components/InstructionsPanel';
 import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
 import { PatternInput, PatternResult } from './types';
+
 // Inline Paywall component
 interface PaywallProps {
   onSuccess?: () => void;
@@ -146,6 +147,7 @@ function App() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [useDepthMode, setUseDepthMode] = useState(true);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -156,6 +158,14 @@ function App() {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserEmail(e.target.value);
     setError(null);
+  };
+
+  const handleDepthModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUseDepthMode(e.target.checked);
+    // Clear existing results when changing mode
+    if (results) {
+      setResults(prev => prev ? { ...prev, pattern: undefined } : null);
+    }
   };
 
   const isValidEmail = (email: string) => {
@@ -212,7 +222,7 @@ function App() {
     });
   };
 
-  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number) => {
+  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number, useDepthMode: boolean) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
@@ -242,10 +252,17 @@ function App() {
           
           let inBlackRegion = false;
           let regionStart = 0;
+          let pixelIntensitySum = 0;
+          let pixelCount = 0;
           
           for (let y = 0; y < canvas.height; y++) {
             const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const isBlack = imageData.data[pixelIndex] < 128; // Black pixel
+            const pixelValue = imageData.data[pixelIndex]; // Red channel (same as green and blue in grayscale)
+            const isBlack = pixelValue < 128; // Black pixel
+            
+            // Collect pixel data for depth calculation
+            pixelIntensitySum += pixelValue;
+            pixelCount++;
             
             if (isBlack && !inBlackRegion) {
               // Start of black region
@@ -264,7 +281,20 @@ function App() {
             marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
           }
           
-          pageMarks.push({ pageRange, marks });
+          // Calculate cut depth based on average pixel intensity
+          let cutDepth;
+          if (useDepthMode && marks.length > 0) {
+            const avgIntensity = pixelIntensitySum / pixelCount;
+            // Convert intensity (0-255) to cut depth (3-40mm)
+            // Lower intensity (darker) = deeper cut
+            const normalizedIntensity = 1 - (avgIntensity / 255); // Invert so 0=light, 1=dark
+            cutDepth = 3 + (normalizedIntensity * 37); // 3mm to 40mm range
+            cutDepth = Math.round(cutDepth * 10) / 10; // Round to 1 decimal place
+          } else {
+            cutDepth = 20; // Classic mode uniform depth
+          }
+          
+          pageMarks.push({ pageRange, marks, depth: cutDepth });
         }
         
         resolve(pageMarks);
@@ -293,8 +323,8 @@ function App() {
       // Process the image
       const processedImage = await processImage(input.imageFile!, sheets, Math.floor(bookHeight * 10));
       
-      // Generate page marks
-      const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding);
+      // Generate page marks with depth mode consideration
+      const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding, useDepthMode);
 
       setResults({
         processedImage,
@@ -311,6 +341,35 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const formatPattern = (pageMarks: any[], useDepthMode: boolean): string => {
+    const header = useDepthMode 
+      ? 'CUT DEPTH   PAGE RANGE   CUT POSITIONS (from top of page)\n======================================================================='
+      : 'PAGE RANGE   CUT POSITIONS (from top of page)\n================================================';
+    
+    const patternLines = pageMarks.map(page => {
+      // Convert marks array to pairs and format as individual positions
+      const positions: number[] = [];
+      for (let i = 0; i < page.marks.length; i += 2) {
+        if (page.marks[i + 1] !== undefined) {
+          positions.push(page.marks[i], page.marks[i + 1]);
+        }
+      }
+      
+      const positionsStr = positions.join(', ');
+      
+      if (useDepthMode) {
+        const depthStr = `${page.depth.toFixed(1)}mm`.padEnd(8);
+        const pageRangeStr = page.pageRange.padEnd(12);
+        return `${depthStr} ${pageRangeStr} ${positionsStr}`;
+      } else {
+        const pageRangeStr = page.pageRange.padEnd(12);
+        return `${pageRangeStr} ${positionsStr}`;
+      }
+    });
+
+    return `${header}\n${patternLines.join('\n')}`;
   };
 
   const handleGenerateInstructions = async () => {
@@ -349,9 +408,7 @@ function App() {
     if (!REQUIRE_PAYMENT) {
       // Free promotion mode - generate instructions immediately
       if (results) {
-        const pattern = results.pageMarks.map(page => 
-          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-        ).join('\n');
+        const pattern = formatPattern(results.pageMarks, useDepthMode);
         
         setResults(prev => prev ? { ...prev, pattern } : null);
       }
@@ -397,10 +454,8 @@ function App() {
       }
       
       if (results) {
-        // Generate cutting instructions after verification
-        const pattern = results.pageMarks.map(page => 
-          `${page.pageRange.padEnd(10)} ${page.marks.join(', ')}`
-        ).join('\n');
+        // Generate cutting instructions after verification with new format
+        const pattern = formatPattern(results.pageMarks, useDepthMode);
         
         setResults(prev => prev ? { ...prev, pattern } : null);
         setShowPaywall(false);
@@ -494,6 +549,23 @@ function App() {
                   placeholder="e.g. 1.0"
                 />
 
+                {/* Depth Mode Toggle */}
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="useDepthMode"
+                    checked={useDepthMode}
+                    onChange={handleDepthModeChange}
+                    className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 focus:ring-2"
+                  />
+                  <label htmlFor="useDepthMode" className="text-sm font-medium text-stone-700">
+                    Include cut depth measurements (Variable: 3-40mm)
+                  </label>
+                </div>
+                <p className="text-xs text-stone-500 ml-7 -mt-2">
+                  Uncheck for simple format without depth measurements (Classic: uniform 20mm)
+                </p>
+
                 <div>
                   <label htmlFor="userEmail" className="block text-sm font-medium text-stone-700">
                     Email Address *
@@ -552,6 +624,7 @@ function App() {
                     bookHeight={results.bookHeight}
                     totalPages={results.totalPages}
                     padding={results.padding}
+                    useDepthMode={useDepthMode}
                   />
                 </div>
               </div>
@@ -563,12 +636,13 @@ function App() {
             <ResultsDisplay 
               results={results} 
               onGenerateInstructions={handleGenerateInstructions}
+              useDepthMode={useDepthMode}
             />
           </div>
         </div>
 
         {/* Instructions */}
-        <InstructionsPanel />
+        <InstructionsPanel useDepthMode={useDepthMode} />
       </div>
     </div>
   );
