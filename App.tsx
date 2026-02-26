@@ -248,51 +248,41 @@ function App() {
           const marks: number[] = [];
           
           // Sample the column of pixels for this sheet
-          const pixelColumn = Math.floor((sheet / sheets) * canvas.width);
-          
-          let inBlackRegion = false;
-          let regionStart = 0;
-          let pixelIntensitySum = 0;
-          let pixelCount = 0;
-          
-          for (let y = 0; y < canvas.height; y++) {
-            const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-            const pixelValue = imageData.data[pixelIndex]; // Red channel (same as green and blue in grayscale)
-            const isBlack = pixelValue < 128; // Black pixel
-            
-            // Collect pixel data for depth calculation
-            pixelIntensitySum += pixelValue;
-            pixelCount++;
-            
-            if (isBlack && !inBlackRegion) {
-              // Start of black region
-              inBlackRegion = true;
-              regionStart = (y / canvas.height) * usableHeight + padding;
-            } else if (!isBlack && inBlackRegion) {
-              // End of black region
-              inBlackRegion = false;
-              const regionEnd = (y / canvas.height) * usableHeight + padding;
-              marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
-            }
-          }
-          
-          // Handle case where black region extends to bottom
-          if (inBlackRegion) {
-            marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((usableHeight + padding).toFixed(1)));
-          }
-          
-          // Calculate cut depth based on average pixel intensity
-          let cutDepth;
-          if (useDepthMode && marks.length > 0) {
-            const avgIntensity = pixelIntensitySum / pixelCount;
-            // Convert intensity (0-255) to cut depth (3-40mm)
-            // Lower intensity (darker) = deeper cut
-            const normalizedIntensity = 1 - (avgIntensity / 255); // Invert so 0=light, 1=dark
-            cutDepth = 3 + (normalizedIntensity * 37); // 3mm to 40mm range
-            cutDepth = Math.round(cutDepth * 10) / 10; // Round to 1 decimal place
-          } else {
-            cutDepth = 20; // Classic mode uniform depth
-          }
+         const pixelColumn = Math.floor((sheet + 0.5) / sheets * canvas.width); // sample center of each sheet
+
+let inBlackRegion = false;
+let regionStart = 0;
+let pixelIntensitySum = 0;
+let pixelCount = 0;
+
+for (let y = 0; y < canvas.height; y++) {
+  const pixelIndex = (y * canvas.width + pixelColumn) * 4;
+  const pixelValue = imageData.data[pixelIndex]; // grayscale
+  const isBlack = pixelValue < 128;
+
+  pixelIntensitySum += pixelValue;
+  pixelCount++;
+
+  if (isBlack && !inBlackRegion) {
+    inBlackRegion = true;
+    regionStart = (y / canvas.height) * (bookHeight - 2 * padding) + padding;
+  } else if (!isBlack && inBlackRegion) {
+    inBlackRegion = false;
+    const regionEnd = (y / canvas.height) * (bookHeight - 2 * padding) + padding;
+    marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
+  }
+}
+
+if (inBlackRegion) {
+  marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((bookHeight - padding).toFixed(1)));
+}
+
+let cutDepth = 20;
+if (useDepthMode && marks.length > 0) {
+  const avgIntensity = pixelIntensitySum / pixelCount;
+  const normalizedIntensity = 1 - avgIntensity / 255;
+  cutDepth = Math.round((3 + normalizedIntensity * 37) * 10) / 10;
+}
           
           pageMarks.push({ pageRange, marks, depth: cutDepth });
         }
