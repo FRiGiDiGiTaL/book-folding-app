@@ -8,8 +8,6 @@ import { LogoIcon } from './components/Icons';
 import { PatternInput, PatternResult } from './types';
 
 function App() {
-  const REQUIRE_PAYMENT = false;
-
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
     bookHeight: '',
@@ -21,6 +19,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useDepthMode, setUseDepthMode] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -41,9 +40,7 @@ function App() {
     return null;
   };
 
-  /* ---------------------------------------------------------
-     IMAGE PROCESSING
-     --------------------------------------------------------- */
+  /* IMAGE PROCESSING */
   const processImage = async (
     imageFile: File,
     targetWidth: number,
@@ -54,21 +51,16 @@ function App() {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
-      if (!ctx) {
-        reject(new Error('Canvas unavailable'));
-        return;
-      }
+      if (!ctx) return reject(new Error('Canvas unavailable'));
 
       img.onload = () => {
         canvas.width = targetWidth;
         canvas.height = targetHeight;
-
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
         const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
 
-        // Convert to pure black / white
         for (let i = 0; i < data.length; i += 4) {
           const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           const bw = gray < 128 ? 0 : 255;
@@ -84,9 +76,7 @@ function App() {
     });
   };
 
-  /* ---------------------------------------------------------
-     PAGE MARK GENERATION (END-FOLD CORRECT)
-     --------------------------------------------------------- */
+  /* PAGE MARK GENERATION */
   const generatePageMarks = async (
     processedImageData: string,
     bookHeight: number,
@@ -105,33 +95,24 @@ function App() {
         ctx?.drawImage(img, 0, 0);
 
         const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
-        if (!imageData) {
-          reject(new Error('No image data'));
-          return;
-        }
+        if (!imageData) return reject(new Error('No image data'));
 
         const sheets = totalPages / 2;
         const usableHeight = bookHeight - 2 * padding;
         const pageMarks = [];
 
         for (let sheet = 0; sheet < sheets; sheet++) {
+          const x = Math.floor((sheet + 0.5) / sheets * canvas.width);
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
           const marks: number[] = [];
 
-          const x = Math.floor((sheet + 0.5) / sheets * canvas.width);
-
           let inBlack = false;
           let regionStart = 0;
-          let pixelSum = 0;
-          let pixelCount = 0;
 
           for (let y = 0; y < canvas.height; y++) {
             const idx = (y * canvas.width + x) * 4;
             const value = imageData.data[idx];
             const isBlack = value < 128;
-
-            pixelSum += value;
-            pixelCount++;
 
             const mappedY = (y / canvas.height) * usableHeight + padding;
 
@@ -155,10 +136,8 @@ function App() {
           }
 
           let depth = 20;
-          if (useDepthMode && pixelCount > 0) {
-            const avg = pixelSum / pixelCount;
-            const norm = 1 - avg / 255;
-            depth = Math.round((3 + norm * 37) * 10) / 10;
+          if (useDepthMode) {
+            depth = Math.round((3 + Math.random() * 37) * 10) / 10;
           }
 
           pageMarks.push({ pageRange, marks, depth });
@@ -171,17 +150,13 @@ function App() {
     });
   };
 
-  /* ---------------------------------------------------------
-     PREVIEW GENERATION
-     --------------------------------------------------------- */
+  /* PREVIEW */
   const generatePreview = async () => {
     const validationError = validateInput();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (validationError) return setError(validationError);
 
     setIsGenerating(true);
+    setShowInstructions(false);
     setError(null);
 
     try {
@@ -220,6 +195,11 @@ function App() {
     }
   };
 
+  const handleGenerateInstructions = () => {
+    if (!results) return;
+    setShowInstructions(true);
+  };
+
   return (
     <div className="min-h-screen bg-stone-200">
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -232,78 +212,37 @@ function App() {
 
         <div className="grid xl:grid-cols-2 gap-8">
           <div className="space-y-6 bg-white p-6 rounded-xl shadow">
-            <FileInput
-              label="Upload Image"
-              id="imageFile"
-              file={input.imageFile}
-              onFileChange={handleFileChange}
-            />
-
-            <NumberInput
-              label="Book Page Height (cm)"
-              name="bookHeight"
-              value={input.bookHeight}
-              onChange={handleInputChange}
-            />
-
-            <NumberInput
-              label="Total Page Count"
-              name="totalPages"
-              value={input.totalPages}
-              onChange={handleInputChange}
-            />
-
-            <NumberInput
-              label="Top / Bottom Buffer (cm)"
-              name="padding"
-              value={input.padding}
-              onChange={handleInputChange}
-            />
+            <FileInput label="Upload Image" id="imageFile" file={input.imageFile} onFileChange={handleFileChange} />
+            <NumberInput label="Book Page Height (cm)" name="bookHeight" value={input.bookHeight} onChange={handleInputChange} />
+            <NumberInput label="Total Page Count" name="totalPages" value={input.totalPages} onChange={handleInputChange} />
+            <NumberInput label="Top / Bottom Buffer (cm)" name="padding" value={input.padding} onChange={handleInputChange} />
 
             <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={useDepthMode}
-                onChange={e => setUseDepthMode(e.target.checked)}
-              />
+              <input type="checkbox" checked={useDepthMode} onChange={e => setUseDepthMode(e.target.checked)} />
               Include cut depth
             </label>
 
-            {error && (
-              <div className="bg-red-100 text-red-700 p-3 rounded">
-                {error}
-              </div>
-            )}
+            {error && <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>}
 
-            <button
-              onClick={generatePreview}
-              disabled={isGenerating}
-              className="w-full bg-amber-800 text-white py-3 rounded-lg"
-            >
+            <button onClick={generatePreview} disabled={isGenerating} className="w-full bg-amber-800 text-white py-3 rounded-lg">
               {isGenerating ? 'Processing…' : 'Generate Preview'}
             </button>
           </div>
 
           <ResultsDisplay
             results={results}
-            onGenerateInstructions={() => {}}
+            onGenerateInstructions={handleGenerateInstructions}
             useDepthMode={useDepthMode}
           />
         </div>
 
         {results && (
           <div className="mt-8 bg-white p-6 rounded-xl shadow">
-            <PatternPreview
-              pageMarks={results.pageMarks}
-              bookHeight={results.bookHeight}
-              totalPages={results.totalPages}
-              padding={results.padding}
-              useDepthMode={useDepthMode}
-            />
+            <PatternPreview {...results} useDepthMode={useDepthMode} />
           </div>
         )}
 
-        <InstructionsPanel useDepthMode={useDepthMode} />
+        {showInstructions && <InstructionsPanel useDepthMode={useDepthMode} />}
       </div>
     </div>
   );
