@@ -19,7 +19,6 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useDepthMode, setUseDepthMode] = useState(true);
-  const [showInstructions, setShowInstructions] = useState(false);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -40,7 +39,11 @@ function App() {
     return null;
   };
 
-  /* IMAGE PROCESSING */
+  /* ---------------------------------------------------------
+     IMAGE PROCESSING
+     Image width = number of sheets
+     Image height = usable page height (scaled)
+     --------------------------------------------------------- */
   const processImage = async (
     imageFile: File,
     targetWidth: number,
@@ -76,7 +79,9 @@ function App() {
     });
   };
 
-  /* PAGE MARK GENERATION */
+  /* ---------------------------------------------------------
+     PAGE MARK GENERATION (CORRECT 1:1 SHEET MAPPING)
+     --------------------------------------------------------- */
   const generatePageMarks = async (
     processedImageData: string,
     bookHeight: number,
@@ -102,7 +107,7 @@ function App() {
         const pageMarks = [];
 
         for (let sheet = 0; sheet < sheets; sheet++) {
-          const x = Math.floor((sheet + 0.5) / sheets * canvas.width);
+          const x = Math.min(sheet, canvas.width - 1); // 🔒 CRITICAL FIX
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
           const marks: number[] = [];
 
@@ -150,13 +155,14 @@ function App() {
     });
   };
 
-  /* PREVIEW */
+  /* ---------------------------------------------------------
+     PREVIEW GENERATION
+     --------------------------------------------------------- */
   const generatePreview = async () => {
     const validationError = validateInput();
     if (validationError) return setError(validationError);
 
     setIsGenerating(true);
-    setShowInstructions(false);
     setError(null);
 
     try {
@@ -195,11 +201,6 @@ function App() {
     }
   };
 
-  const handleGenerateInstructions = () => {
-    if (!results) return;
-    setShowInstructions(true);
-  };
-
   return (
     <div className="min-h-screen bg-stone-200">
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -229,20 +230,22 @@ function App() {
             </button>
           </div>
 
-          <ResultsDisplay
-            results={results}
-            onGenerateInstructions={handleGenerateInstructions}
-            useDepthMode={useDepthMode}
-          />
+          <ResultsDisplay results={results} useDepthMode={useDepthMode} />
         </div>
 
         {results && (
           <div className="mt-8 bg-white p-6 rounded-xl shadow">
-            <PatternPreview {...results} useDepthMode={useDepthMode} />
+            <PatternPreview
+              pageMarks={results.pageMarks}
+              bookHeight={results.bookHeight}
+              totalPages={results.totalPages}
+              padding={results.padding}
+              useDepthMode={useDepthMode}
+            />
           </div>
         )}
 
-        {showInstructions && <InstructionsPanel useDepthMode={useDepthMode} />}
+        <InstructionsPanel useDepthMode={useDepthMode} />
       </div>
     </div>
   );
