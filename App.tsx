@@ -7,145 +7,18 @@ import { PatternPreview } from './components/PatternPreview';
 import { LogoIcon } from './components/Icons';
 import { PatternInput, PatternResult } from './types';
 
-// Inline Paywall component
-interface PaywallProps {
-  onSuccess?: () => void;
-  onCancel?: () => void;
-  sessionId?: string;
-  isVerifying?: boolean;
-  verificationData?: { email: string; paymentId: string };
-  onVerificationDataChange?: (data: { email: string; paymentId: string }) => void;
-}
-
-const Paywall: React.FC<PaywallProps> = ({ 
-  onSuccess, 
-  onCancel, 
-  sessionId, 
-  isVerifying,
-  verificationData,
-  onVerificationDataChange
-}) => {
-  const handleInputChange = (field: 'email' | 'paymentId', value: string) => {
-    if (onVerificationDataChange) {
-      onVerificationDataChange({
-        ...verificationData!,
-        [field]: value
-      });
-    }
-  };
-
-  const canVerify = verificationData?.email && 
-                   verificationData?.email.includes('@') && 
-                   verificationData?.paymentId && 
-                   verificationData?.paymentId.length >= 10;
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-stone-200">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-4 text-stone-800">Secure Payment Required</h1>
-        <p className="mb-6 text-stone-600">
-          Complete payment to unlock your cutting instructions. Enter your payment details below to verify.
-        </p>
-        <p className="mb-6 text-2xl font-bold text-amber-800">Only $2.00</p>
-        
-        <div className="space-y-4">
-          <a
-            href="https://buy.stripe.com/cNi28s8Gf0Ag9Rk0cCbQY00"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-blue-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-blue-700 transition"
-          >
-            Pay with Stripe
-          </a>
-          
-          <div className="border-t border-stone-200 pt-4">
-            <p className="text-sm text-stone-600 mb-3">
-              After completing payment, enter your details from the Stripe receipt:
-            </p>
-            
-            <div className="space-y-3 text-left">
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">
-                  Email Address Used for Payment
-                </label>
-                <input
-                  type="email"
-                  value={verificationData?.email || ''}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isVerifying}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">
-                  Payment Confirmation ID
-                </label>
-                <input
-                  type="text"
-                  value={verificationData?.paymentId || ''}
-                  onChange={(e) => handleInputChange('paymentId', e.target.value)}
-                  placeholder="pi_1234... or ch_1234... (from email receipt)"
-                  className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isVerifying}
-                />
-                <p className="text-xs text-stone-500 mt-1">
-                  Find this in your Stripe email receipt (starts with pi_ or ch_)
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={onSuccess}
-              disabled={isVerifying || !canVerify}
-              className="w-full mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Unlock'}
-            </button>
-          </div>
-          
-          {onCancel && (
-            <button
-              onClick={onCancel}
-              disabled={isVerifying}
-              className="w-full bg-stone-300 text-stone-700 px-6 py-2 rounded-lg hover:bg-stone-400 transition disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-        
-        <div className="mt-6 text-xs text-stone-500">
-          <p>🔒 Payment verification required for security</p>
-          <p>Your payment details are used only for verification</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 function App() {
-  // 🎯 PROMOTION TOGGLE: Set to false to make the app completely free
-  const REQUIRE_PAYMENT = false; // Change to false for free promotions
-  
+  const REQUIRE_PAYMENT = false;
+
   const [input, setInput] = useState<PatternInput>({
     imageFile: null,
     bookHeight: '',
     totalPages: '',
-    padding: '1.0'
+    padding: '0.5'
   });
 
   const [results, setResults] = useState<PatternResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
-  const [paymentVerificationData, setPaymentVerificationData] = useState({
-    email: '',
-    paymentId: ''
-  });
-  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [useDepthMode, setUseDepthMode] = useState(true);
 
@@ -155,23 +28,6 @@ function App() {
     setError(null);
   }, []);
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserEmail(e.target.value);
-    setError(null);
-  };
-
-  const handleDepthModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUseDepthMode(e.target.checked);
-    // Clear existing results when changing mode
-    if (results) {
-      setResults(prev => prev ? { ...prev, pattern: undefined } : null);
-    }
-  };
-
-  const isValidEmail = (email: string) => {
-    return email.includes('@') && email.includes('.') && email.length > 5;
-  };
-
   const handleFileChange = useCallback((file: File | null) => {
     setInput(prev => ({ ...prev, imageFile: file }));
     setError(null);
@@ -179,121 +35,145 @@ function App() {
 
   const validateInput = (): string | null => {
     if (!input.imageFile) return 'Please select an image file.';
-    if (!input.bookHeight || parseFloat(input.bookHeight) <= 0) return 'Please enter a valid book height.';
-    if (!input.totalPages || parseInt(input.totalPages) <= 0) return 'Please enter a valid page count.';
-    if (parseInt(input.totalPages) % 2 !== 0) return 'Total pages must be an even number.';
+    if (!input.bookHeight || parseFloat(input.bookHeight) <= 0) return 'Invalid book height.';
+    if (!input.totalPages || parseInt(input.totalPages) <= 0) return 'Invalid page count.';
+    if (parseInt(input.totalPages) % 2 !== 0) return 'Total pages must be even.';
     return null;
   };
 
-  const processImage = async (imageFile: File, targetWidth: number, targetHeight: number): Promise<string> => {
+  /* ---------------------------------------------------------
+     IMAGE PROCESSING
+     --------------------------------------------------------- */
+  const processImage = async (
+    imageFile: File,
+    targetWidth: number,
+    targetHeight: number
+  ): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
-        reject(new Error('Could not get canvas context'));
+        reject(new Error('Canvas unavailable'));
         return;
       }
 
       img.onload = () => {
         canvas.width = targetWidth;
         canvas.height = targetHeight;
-        
-        // Draw and resize the image
+
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-        
-        // Convert to grayscale and apply threshold
+
         const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
-        
+
+        // Convert to pure black / white
         for (let i = 0; i < data.length; i += 4) {
-          const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-          const bw = gray < 128 ? 0 : 255; // Threshold to black/white
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const bw = gray < 128 ? 0 : 255;
           data[i] = data[i + 1] = data[i + 2] = bw;
         }
-        
+
         ctx.putImageData(imageData, 0, 0);
         resolve(canvas.toDataURL());
       };
 
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => reject(new Error('Image load failed'));
       img.src = URL.createObjectURL(imageFile);
     });
   };
 
-  const generatePageMarks = (processedImageData: string, bookHeight: number, totalPages: number, padding: number, useDepthMode: boolean) => {
+  /* ---------------------------------------------------------
+     PAGE MARK GENERATION (END-FOLD CORRECT)
+     --------------------------------------------------------- */
+  const generatePageMarks = async (
+    processedImageData: string,
+    bookHeight: number,
+    totalPages: number,
+    padding: number,
+    useDepthMode: boolean
+  ) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     return new Promise<any[]>((resolve, reject) => {
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx?.drawImage(img, 0, 0);
-        
+
         const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
         if (!imageData) {
-          reject(new Error('Could not get image data'));
+          reject(new Error('No image data'));
           return;
         }
-        
+
         const sheets = totalPages / 2;
-        const usableHeight = bookHeight - (2 * padding);
+        const usableHeight = bookHeight - 2 * padding;
         const pageMarks = [];
-        
+
         for (let sheet = 0; sheet < sheets; sheet++) {
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
           const marks: number[] = [];
-          
-          // Sample the column of pixels for this sheet
-         const pixelColumn = Math.floor((sheet + 0.5) / sheets * canvas.width); // sample center of each sheet
 
-let inBlackRegion = false;
-let regionStart = 0;
-let pixelIntensitySum = 0;
-let pixelCount = 0;
+          const x = Math.floor((sheet + 0.5) / sheets * canvas.width);
 
-for (let y = 0; y < canvas.height; y++) {
-  const pixelIndex = (y * canvas.width + pixelColumn) * 4;
-  const pixelValue = imageData.data[pixelIndex]; // grayscale
-  const isBlack = pixelValue < 128;
+          let inBlack = false;
+          let regionStart = 0;
+          let pixelSum = 0;
+          let pixelCount = 0;
 
-  pixelIntensitySum += pixelValue;
-  pixelCount++;
+          for (let y = 0; y < canvas.height; y++) {
+            const idx = (y * canvas.width + x) * 4;
+            const value = imageData.data[idx];
+            const isBlack = value < 128;
 
-  if (isBlack && !inBlackRegion) {
-    inBlackRegion = true;
-    regionStart = (y / canvas.height) * (bookHeight - 2 * padding) + padding;
-  } else if (!isBlack && inBlackRegion) {
-    inBlackRegion = false;
-    const regionEnd = (y / canvas.height) * (bookHeight - 2 * padding) + padding;
-    marks.push(parseFloat(regionStart.toFixed(1)), parseFloat(regionEnd.toFixed(1)));
-  }
-}
+            pixelSum += value;
+            pixelCount++;
 
-if (inBlackRegion) {
-  marks.push(parseFloat(regionStart.toFixed(1)), parseFloat((bookHeight - padding).toFixed(1)));
-}
+            const mappedY = (y / canvas.height) * usableHeight + padding;
 
-let cutDepth = 20;
-if (useDepthMode && marks.length > 0) {
-  const avgIntensity = pixelIntensitySum / pixelCount;
-  const normalizedIntensity = 1 - avgIntensity / 255;
-  cutDepth = Math.round((3 + normalizedIntensity * 37) * 10) / 10;
-}
-          
-          pageMarks.push({ pageRange, marks, depth: cutDepth });
+            if (isBlack && !inBlack) {
+              inBlack = true;
+              regionStart = mappedY;
+            } else if (!isBlack && inBlack) {
+              inBlack = false;
+              marks.push(
+                parseFloat(regionStart.toFixed(1)),
+                parseFloat(mappedY.toFixed(1))
+              );
+            }
+          }
+
+          if (inBlack) {
+            marks.push(
+              parseFloat(regionStart.toFixed(1)),
+              parseFloat((bookHeight - padding).toFixed(1))
+            );
+          }
+
+          let depth = 20;
+          if (useDepthMode && pixelCount > 0) {
+            const avg = pixelSum / pixelCount;
+            const norm = 1 - avg / 255;
+            depth = Math.round((3 + norm * 37) * 10) / 10;
+          }
+
+          pageMarks.push({ pageRange, marks, depth });
         }
-        
+
         resolve(pageMarks);
       };
-      
+
       img.src = processedImageData;
     });
   };
 
+  /* ---------------------------------------------------------
+     PREVIEW GENERATION
+     --------------------------------------------------------- */
   const generatePreview = async () => {
     const validationError = validateInput();
     if (validationError) {
@@ -309,12 +189,21 @@ if (useDepthMode && marks.length > 0) {
       const totalPages = parseInt(input.totalPages);
       const padding = parseFloat(input.padding);
       const sheets = totalPages / 2;
+      const usableHeight = bookHeight - 2 * padding;
 
-      // Process the image
-      const processedImage = await processImage(input.imageFile!, sheets, Math.floor(bookHeight * 10));
-      
-      // Generate page marks with depth mode consideration
-      const pageMarks = await generatePageMarks(processedImage, bookHeight, totalPages, padding, useDepthMode);
+      const processedImage = await processImage(
+        input.imageFile!,
+        sheets,
+        Math.floor(usableHeight * 10)
+      );
+
+      const pageMarks = await generatePageMarks(
+        processedImage,
+        bookHeight,
+        totalPages,
+        padding,
+        useDepthMode
+      );
 
       setResults({
         processedImage,
@@ -323,301 +212,97 @@ if (useDepthMode && marks.length > 0) {
         bookHeight,
         totalPages,
         padding
-        // Removed pattern generation - only happens after payment
       });
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while processing the image.');
+      setError(err instanceof Error ? err.message : 'Processing failed');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const formatPattern = (pageMarks: any[], useDepthMode: boolean): string => {
-    const header = useDepthMode 
-      ? 'CUT DEPTH   PAGE RANGE   CUT POSITIONS (from top of page)\n======================================================================='
-      : 'PAGE RANGE   CUT POSITIONS (from top of page)\n================================================';
-    
-    const patternLines = pageMarks.map(page => {
-      // Convert marks array to pairs and format as individual positions
-      const positions: number[] = [];
-      for (let i = 0; i < page.marks.length; i += 2) {
-        if (page.marks[i + 1] !== undefined) {
-          positions.push(page.marks[i], page.marks[i + 1]);
-        }
-      }
-      
-      const positionsStr = positions.join(', ');
-      
-      if (useDepthMode) {
-        const depthStr = `${page.depth.toFixed(1)}mm`.padEnd(8);
-        const pageRangeStr = page.pageRange.padEnd(12);
-        return `${depthStr} ${pageRangeStr} ${positionsStr}`;
-      } else {
-        const pageRangeStr = page.pageRange.padEnd(12);
-        return `${pageRangeStr} ${positionsStr}`;
-      }
-    });
-
-    return `${header}\n${patternLines.join('\n')}`;
-  };
-
-  const handleGenerateInstructions = async () => {
-    // Validate email first
-    if (!isValidEmail(userEmail)) {
-      setError('Please enter a valid email address before generating instructions.');
-      return;
-    }
-
-    // Store email for later use
-    try {
-      // Option: Send to your backend
-      await fetch('/api/collect-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          sessionId: `session_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent
-        })
-      });
-      console.log('Email successfully saved to backend');
-    } catch (error) {
-      // If backend fails, at least log it locally for debugging
-      console.warn('Backend email save failed, logging locally:', {
-        email: userEmail,
-        timestamp: new Date().toISOString(),
-        error: error.message
-      });
-      
-      // Don't block user flow if email saving fails
-    }
-    
-    // Check if payment is required
-    if (!REQUIRE_PAYMENT) {
-      // Free promotion mode - generate instructions immediately
-      if (results) {
-        const pattern = formatPattern(results.pageMarks, useDepthMode);
-        
-        setResults(prev => prev ? { ...prev, pattern } : null);
-      }
-      return;
-    }
-    
-    // Normal paid mode - show paywall with pre-filled email
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    setPaymentSessionId(sessionId);
-    setPaymentVerificationData({ email: userEmail, paymentId: '' });
-    setShowPaywall(true);
-  };
-
-  const verifyPaymentAndGenerate = async (email: string, paymentId: string) => {
-    setIsVerifyingPayment(true);
-    
-    try {
-      // Basic validation
-      if (!email || !email.includes('@')) {
-        alert('Please enter a valid email address');
-        setIsVerifyingPayment(false);
-        return;
-      }
-      
-      if (!paymentId || paymentId.length < 10) {
-        alert('Please enter a valid payment confirmation (at least 10 characters)');
-        setIsVerifyingPayment(false);
-        return;
-      }
-      
-      // Simulate verification delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Additional security: Check if payment details look legitimate
-      const emailDomain = email.split('@')[1];
-      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
-      const hasValidFormat = paymentId.includes('pi_') || paymentId.includes('ch_') || paymentId.length >= 15;
-      
-      if (!hasValidFormat) {
-        alert('Payment confirmation format appears invalid. Please check your Stripe receipt.');
-        setIsVerifyingPayment(false);
-        return;
-      }
-      
-      if (results) {
-        // Generate cutting instructions after verification with new format
-        const pattern = formatPattern(results.pageMarks, useDepthMode);
-        
-        setResults(prev => prev ? { ...prev, pattern } : null);
-        setShowPaywall(false);
-        
-        // Clear verification data
-        setPaymentVerificationData({ email: '', paymentId: '' });
-      }
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      alert('Unable to verify payment. Please try again or contact support.');
-    } finally {
-      setIsVerifyingPayment(false);
-    }
-  };
-
-  const handlePaymentSuccess = () => {
-    const { email, paymentId } = paymentVerificationData;
-    verifyPaymentAndGenerate(email, paymentId);
-  };
-
-  const handlePaymentCancel = () => {
-    setShowPaywall(false);
-  };
-
-  if (showPaywall) {
-    return (
-      <Paywall 
-        onSuccess={handlePaymentSuccess} 
-        onCancel={handlePaymentCancel}
-        sessionId={paymentSessionId}
-        isVerifying={isVerifyingPayment}
-        verificationData={paymentVerificationData}
-        onVerificationDataChange={setPaymentVerificationData}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-stone-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="flex justify-center items-center gap-3 mb-4">
             <LogoIcon />
-            <h1 className="text-3xl font-bold text-stone-800">Book Folding Pattern Generator</h1>
+            <h1 className="text-3xl font-bold">Book Folding Pattern Generator</h1>
           </div>
-          <p className="text-stone-600 max-w-2xl mx-auto">
-            Create precise "Measure, Mark, and Cut" patterns from your images. 
-            Perfect for book folding art projects and sculptural designs.
-          </p>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-          {/* Left Column - Input Form */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <h2 className="text-xl font-semibold text-stone-700 mb-4">1. Upload & Configure</h2>
-              
-              <div className="space-y-4">
-                <FileInput
-                  label="Upload Image"
-                  id="imageFile"
-                  file={input.imageFile}
-                  onFileChange={handleFileChange}
-                />
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <NumberInput
-                    label="Book Page Height (cm)"
-                    name="bookHeight"
-                    value={input.bookHeight}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 19.5"
-                  />
-                  <NumberInput
-                    label="Total Page Count"
-                    name="totalPages"
-                    value={input.totalPages}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 200"
-                    step="2"
-                  />
-                </div>
-                
-                <NumberInput
-                  label="Top/Bottom Padding (cm)"
-                  name="padding"
-                  value={input.padding}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 1.0"
-                />
+        <div className="grid xl:grid-cols-2 gap-8">
+          <div className="space-y-6 bg-white p-6 rounded-xl shadow">
+            <FileInput
+              label="Upload Image"
+              id="imageFile"
+              file={input.imageFile}
+              onFileChange={handleFileChange}
+            />
 
-                {/* Depth Mode Toggle */}
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="useDepthMode"
-                    checked={useDepthMode}
-                    onChange={handleDepthModeChange}
-                    className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 focus:ring-2"
-                  />
-                  <label htmlFor="useDepthMode" className="text-sm font-medium text-stone-700">
-                    Include cut depth measurements (Variable: 3-40mm)
-                  </label>
-                </div>
-                <p className="text-xs text-stone-500 ml-7 -mt-2">
-                  Uncheck for simple format without depth measurements (Classic: uniform 20mm)
-                </p>
+            <NumberInput
+              label="Book Page Height (cm)"
+              name="bookHeight"
+              value={input.bookHeight}
+              onChange={handleInputChange}
+            />
 
-                <div>
-                  <label htmlFor="userEmail" className="block text-sm font-medium text-stone-700">
-                    Email Address *
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="email"
-                      id="userEmail"
-                      value={userEmail}
-                      onChange={handleEmailChange}
-                      className="block w-full shadow-sm sm:text-sm border-orange-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
-                  <p className="text-xs text-stone-500 mt-1">Required to generate cutting instructions</p>
-                </div>
+            <NumberInput
+              label="Total Page Count"
+              name="totalPages"
+              value={input.totalPages}
+              onChange={handleInputChange}
+            />
 
-                {error && (
-                  <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
-                    {error}
-                  </div>
-                )}
+            <NumberInput
+              label="Top / Bottom Buffer (cm)"
+              name="padding"
+              value={input.padding}
+              onChange={handleInputChange}
+            />
 
-                <button
-                  onClick={generatePreview}
-                  disabled={isGenerating}
-                  className="w-full bg-amber-800 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? 'Processing...' : 'Generate Preview'}
-                </button>
-              </div>
-            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={useDepthMode}
+                onChange={e => setUseDepthMode(e.target.checked)}
+              />
+              Include cut depth
+            </label>
 
-            {/* Preview */}
-            {results && (
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-lg font-semibold text-stone-700 mb-3">Pattern Preview</h3>
-                <div className="border border-stone-300 rounded-lg overflow-hidden">
-                  <PatternPreview 
-                    pageMarks={results.pageMarks}
-                    bookHeight={results.bookHeight}
-                    totalPages={results.totalPages}
-                    padding={results.padding}
-                    useDepthMode={useDepthMode}
-                  />
-                </div>
+            {error && (
+              <div className="bg-red-100 text-red-700 p-3 rounded">
+                {error}
               </div>
             )}
+
+            <button
+              onClick={generatePreview}
+              disabled={isGenerating}
+              className="w-full bg-amber-800 text-white py-3 rounded-lg"
+            >
+              {isGenerating ? 'Processing…' : 'Generate Preview'}
+            </button>
           </div>
 
-          {/* Right Column - Results */}
-          <div>
-            <ResultsDisplay 
-              results={results} 
-              onGenerateInstructions={handleGenerateInstructions}
+          <ResultsDisplay
+            results={results}
+            onGenerateInstructions={() => {}}
+            useDepthMode={useDepthMode}
+          />
+        </div>
+
+        {results && (
+          <div className="mt-8 bg-white p-6 rounded-xl shadow">
+            <PatternPreview
+              pageMarks={results.pageMarks}
+              bookHeight={results.bookHeight}
+              totalPages={results.totalPages}
+              padding={results.padding}
               useDepthMode={useDepthMode}
             />
           </div>
-        </div>
+        )}
 
-        {/* Instructions */}
         <InstructionsPanel useDepthMode={useDepthMode} />
       </div>
     </div>
