@@ -156,6 +156,64 @@ function App() {
   };
 
   /* ---------------------------------------------------------
+     GENERATE INSTRUCTIONS TEXT
+     --------------------------------------------------------- */
+  const generateInstructions = useCallback(() => {
+    if (!results) return;
+
+    const lines: string[] = [];
+    
+    if (useDepthMode) {
+      lines.push('BOOK FOLDING PATTERN - DEPTH-BASED CUTTING');
+      lines.push('=' .repeat(70));
+      lines.push('');
+      lines.push('CUT DEPTH (mm)   PAGE RANGE   CUT POSITIONS (from top of page in cm)');
+      lines.push('-' .repeat(70));
+    } else {
+      lines.push('BOOK FOLDING PATTERN - CLASSIC CUTTING');
+      lines.push('=' .repeat(70));
+      lines.push('');
+      lines.push('PAGE RANGE   CUT POSITIONS (from top of page in cm)');
+      lines.push('-' .repeat(70));
+    }
+
+    results.pageMarks.forEach(page => {
+      const marksStr = page.marks.length > 0 
+        ? page.marks.map(m => m.toFixed(1)).join(', ')
+        : 'No cuts needed';
+
+      if (useDepthMode) {
+        lines.push(`${page.depth.toFixed(1)}mm          ${page.pageRange.padEnd(12)} ${marksStr}`);
+      } else {
+        lines.push(`${page.pageRange.padEnd(12)} ${marksStr}`);
+      }
+    });
+
+    lines.push('');
+    lines.push('-' .repeat(70));
+    lines.push('INSTRUCTIONS:');
+    lines.push('1. Measure from top of page using the Cut Positions');
+    lines.push('2. Mark each position lightly with pencil');
+    lines.push('3. Cut straight into page edge at marked positions');
+    if (useDepthMode) {
+      lines.push('4. Cut to specified depth for each page pair');
+      lines.push('5. All cuts on a page pair use the same depth');
+    } else {
+      lines.push('4. Cut to uniform 20.0mm depth for all cuts');
+    }
+    lines.push('6. Cut through both pages of each sheet simultaneously');
+    lines.push('');
+    lines.push('Book Specifications:');
+    lines.push(`- Page Height: ${results.bookHeight}cm`);
+    lines.push(`- Total Pages: ${results.totalPages}`);
+    lines.push(`- Top/Bottom Margin: ${results.padding}cm`);
+    lines.push(`- Total Sheets: ${results.totalPages / 2}`);
+
+    const pattern = lines.join('\n');
+    setResults(prev => prev ? { ...prev, pattern } : null);
+  }, [results, useDepthMode]);
+
+  /* ---------------------------------------------------------
      PREVIEW GENERATION
      --------------------------------------------------------- */
   const generatePreview = async () => {
@@ -230,7 +288,7 @@ function App() {
             </button>
           </div>
 
-          <ResultsDisplay results={results} useDepthMode={useDepthMode} />
+          <ResultsDisplay results={results} onGenerateInstructions={generateInstructions} useDepthMode={useDepthMode} />
         </div>
 
         {results && (
