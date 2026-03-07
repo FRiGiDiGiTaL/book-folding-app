@@ -41,12 +41,11 @@ function App() {
 
   /* ---------------------------------------------------------
      IMAGE PROCESSING
-     Image width = number of sheets
-     Image height = usable page height (scaled)
+     Scale image by HEIGHT only (keeping aspect ratio)
+     Width will be determined naturally by aspect ratio
      --------------------------------------------------------- */
   const processImage = async (
     imageFile: File,
-    targetWidth: number,
     targetHeight: number
   ): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -57,6 +56,10 @@ function App() {
       if (!ctx) return reject(new Error('Canvas unavailable'));
 
       img.onload = () => {
+        // Scale only by height, maintain aspect ratio
+        const scale = targetHeight / img.height;
+        const targetWidth = Math.ceil(img.width * scale);
+
         canvas.width = targetWidth;
         canvas.height = targetHeight;
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
@@ -80,7 +83,8 @@ function App() {
   };
 
   /* ---------------------------------------------------------
-     PAGE MARK GENERATION (CORRECT 1:1 SHEET MAPPING)
+     PAGE MARK GENERATION
+     Tiles/samples the image across all sheets
      --------------------------------------------------------- */
   const generatePageMarks = async (
     processedImageData: string,
@@ -107,7 +111,10 @@ function App() {
         const pageMarks = [];
 
         for (let sheet = 0; sheet < sheets; sheet++) {
-          const x = Math.min(sheet, canvas.width - 1); // 🔒 CRITICAL FIX
+          // Tile/sample the image across all sheets
+          // Maps sheet position (0 to sheets) to image x position (0 to canvas.width)
+          const x = Math.floor((sheet / sheets) * canvas.width) % canvas.width;
+          
           const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
           const marks: number[] = [];
 
@@ -227,12 +234,11 @@ function App() {
       const bookHeight = parseFloat(input.bookHeight);
       const totalPages = parseInt(input.totalPages);
       const padding = parseFloat(input.padding);
-      const sheets = totalPages / 2;
       const usableHeight = bookHeight - 2 * padding;
 
+      // Scale image by height only (keeping aspect ratio)
       const processedImage = await processImage(
         input.imageFile!,
-        sheets,
         Math.floor(usableHeight * 10)
       );
 
