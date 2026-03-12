@@ -84,88 +84,117 @@ function App() {
      PAGE MARK GENERATION
      --------------------------------------------------------- */
   const generatePageMarks = async (
-    processedImageData: string,
-    bookHeight: number,
-    totalPages: number,
-    padding: number,
-    useDepthMode: boolean
-  ) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
+  processedImageData: string,
+  bookHeight: number,
+  totalPages: number,
+  padding: number,
+  useDepthMode: boolean
+) => {
 
-    return new Promise<any[]>((resolve, reject) => {
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
 
-        ctx?.drawImage(img, 0, 0);
+  return new Promise<any[]>((resolve, reject) => {
 
-        const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
-        if (!imageData) return reject(new Error('No image data'));
+    img.onload = () => {
 
-        const sheets = totalPages / 2;
-        const usableHeight = bookHeight - 2 * padding;
-        const pageMarks = [];
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
 
-        for (let sheet = 0; sheet < sheets; sheet++) {
+      const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+      if (!imageData) return reject(new Error('No image data'));
 
-          // CENTER SAMPLING ACROSS ENTIRE IMAGE WIDTH
-          const x = Math.floor(((sheet + 0.5) / sheets) * canvas.width);
+      const data = imageData.data;
 
-          const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
-          const marks: number[] = [];
+      /* -----------------------------
+         AUTO CROP LEFT / RIGHT
+      ----------------------------- */
 
-          let inBlack = false;
-          let regionStart = 0;
+      let left = canvas.width;
+      let right = 0;
 
-          for (let y = 0; y < canvas.height; y++) {
-            const idx = (y * canvas.width + x) * 4;
-            const value = imageData.data[idx];
-            const isBlack = value < 128;
+      for (let x = 0; x < canvas.width; x++) {
+        for (let y = 0; y < canvas.height; y++) {
 
-            const mappedY = (y / canvas.height) * usableHeight + padding;
+          const idx = (y * canvas.width + x) * 4;
+          const value = data[idx];
 
-            if (isBlack && !inBlack) {
-              inBlack = true;
-              regionStart = mappedY;
-            } 
-            else if (!isBlack && inBlack) {
-              inBlack = false;
-              marks.push(
-                parseFloat(regionStart.toFixed(1)),
-                parseFloat(mappedY.toFixed(1))
-              );
-            }
+          if (value < 128) {
+            left = Math.min(left, x);
+            right = Math.max(right, x);
           }
 
-          if (inBlack) {
+        }
+      }
+
+      const croppedWidth = right - left + 1;
+
+      const sheets = totalPages / 2;
+      const usableHeight = bookHeight - 2 * padding;
+
+      const pageMarks = [];
+
+      for (let sheet = 0; sheet < sheets; sheet++) {
+
+        const x = Math.floor(left + ((sheet + 0.5) / sheets) * croppedWidth);
+
+        const pageRange = `${sheet * 2 + 1}-${sheet * 2 + 2}`;
+        const marks: number[] = [];
+
+        let inBlack = false;
+        let regionStart = 0;
+
+        for (let y = 0; y < canvas.height; y++) {
+
+          const idx = (y * canvas.width + x) * 4;
+          const value = data[idx];
+          const isBlack = value < 128;
+
+          const mappedY = (y / canvas.height) * usableHeight + padding;
+
+          if (isBlack && !inBlack) {
+            inBlack = true;
+            regionStart = mappedY;
+          }
+
+          else if (!isBlack && inBlack) {
+            inBlack = false;
             marks.push(
               parseFloat(regionStart.toFixed(1)),
-              parseFloat((bookHeight - padding).toFixed(1))
+              parseFloat(mappedY.toFixed(1))
             );
           }
 
-          let depth = 20;
-
-          if (useDepthMode) {
-            depth = Math.round((3 + Math.random() * 37) * 10) / 10;
-          }
-
-          pageMarks.push({
-            pageRange,
-            marks,
-            depth
-          });
         }
 
-        resolve(pageMarks);
-      };
+        if (inBlack) {
+          marks.push(
+            parseFloat(regionStart.toFixed(1)),
+            parseFloat((bookHeight - padding).toFixed(1))
+          );
+        }
 
-      img.onerror = () => reject(new Error('Image load failed'));
-      img.src = processedImageData;
-    });
-  };
+        let depth = 20;
+
+        if (useDepthMode) {
+          depth = Math.round((3 + Math.random() * 37) * 10) / 10;
+        }
+
+        pageMarks.push({ pageRange, marks, depth });
+
+      }
+
+      resolve(pageMarks);
+
+    };
+
+    img.src = processedImageData;
+
+  });
+
+};
 
   /* ---------------------------------------------------------
      GENERATE INSTRUCTIONS TEXT
